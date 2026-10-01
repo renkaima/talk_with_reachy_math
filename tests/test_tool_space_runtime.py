@@ -7,16 +7,16 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-import talk_with_reachy.config as config_mod
-import talk_with_reachy.tool_spaces as tool_spaces_mod
-from talk_with_reachy.mcp_client import McpToolTimeoutError, McpToolInvocationError
-from talk_with_reachy.tool_spaces import (
+import talk_with_reachy_math.config as config_mod
+import talk_with_reachy_math.tool_spaces as tool_spaces_mod
+from talk_with_reachy_math.mcp_client import McpToolTimeoutError, McpToolInvocationError
+from talk_with_reachy_math.tool_spaces import (
     InstalledToolSpace,
     InstalledToolSpaceTool,
     InstalledToolSpacesManifest,
     write_installed_tool_spaces,
 )
-from talk_with_reachy.profile_store import write_profile
+from talk_with_reachy_math.profile_store import write_profile
 
 
 SEARCH_SPACE_SLUG = "example/search-tool"
@@ -28,11 +28,11 @@ SEARCH_MCP_URL = "https://example-search-tool.hf.space/gradio_api/mcp/"
 
 def _reload_core_tools() -> ModuleType:
     for module_name in list(sys.modules):
-        if module_name.startswith("talk_with_reachy.tools."):
+        if module_name.startswith("talk_with_reachy_math.tools."):
             sys.modules.pop(module_name, None)
 
-    sys.modules.pop("talk_with_reachy.tools.core_tools", None)
-    return importlib.import_module("talk_with_reachy.tools.core_tools")
+    sys.modules.pop("talk_with_reachy_math.tools.core_tools", None)
+    return importlib.import_module("talk_with_reachy_math.tools.core_tools")
 
 
 def _installed_search_space() -> InstalledToolSpace:

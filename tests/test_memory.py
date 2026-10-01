@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import talk_with_reachy.prompts as prompts_mod
-from talk_with_reachy.config import config
-from talk_with_reachy.memory import (
+import talk_with_reachy_math.prompts as prompts_mod
+from talk_with_reachy_math.config import config
+from talk_with_reachy_math.memory import (
     MAX_FACTS,
     MAX_FACT_CHARS,
     MemoryFact,
@@ -17,9 +17,9 @@ from talk_with_reachy.memory import (
     format_memory_for_prompt,
     memory_path_for_instance,
 )
-from talk_with_reachy.tools.forget import Forget
-from talk_with_reachy.tools.remember import Remember
-from talk_with_reachy.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.forget import Forget
+from talk_with_reachy_math.tools.remember import Remember
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
 
 
 def test_memory_store_adds_dedupes_caps_and_formats(tmp_path: Path) -> None:

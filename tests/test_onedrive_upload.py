@@ -10,8 +10,8 @@ import msal
 import httpx
 import pytest
 
-from talk_with_reachy import study_log, onedrive_upload
-from talk_with_reachy.onedrive_upload import TokenProvider, OneDriveUploader, upload_url
+from talk_with_reachy_math import study_log, onedrive_upload
+from talk_with_reachy_math.onedrive_upload import TokenProvider, OneDriveUploader, upload_url
 
 
 class FakeGraph:

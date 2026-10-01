@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from talk_with_reachy.config import DEFAULT_PROFILES_DIRECTORY
-from talk_with_reachy.profile_store import (
+from talk_with_reachy_math.config import DEFAULT_PROFILES_DIRECTORY
+from talk_with_reachy_math.profile_store import (
     ProfileFormatError,
     write_profile,
     list_profile_names,

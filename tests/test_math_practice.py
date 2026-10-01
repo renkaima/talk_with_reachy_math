@@ -11,10 +11,17 @@ from fractions import Fraction as F
 import pytest
 from study_helpers import records, csv_rows
 
-from talk_with_reachy import prompts, voice_id, study_log, math_practice
-from talk_with_reachy.config import config
-from talk_with_reachy.math_practice import SKILLS, MathCoach, SkillProgress, numbers_in, parse_answer, record_result
-from talk_with_reachy.tools.math_practice import CheckMathAnswer, NextMathProblem
+from talk_with_reachy_math import prompts, voice_id, study_log, math_practice
+from talk_with_reachy_math.config import config
+from talk_with_reachy_math.math_practice import (
+    SKILLS,
+    MathCoach,
+    SkillProgress,
+    numbers_in,
+    parse_answer,
+    record_result,
+)
+from talk_with_reachy_math.tools.math_practice import CheckMathAnswer, NextMathProblem
 
 
 @pytest.mark.parametrize(

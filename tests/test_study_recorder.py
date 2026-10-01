@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 from study_helpers import SR, FakeEmbedder, tone, basis, records, csv_rows, wait_for_writes
 
-from talk_with_reachy import voice_id, study_log
-from talk_with_reachy.study_recorder import StudyRecorder
+from talk_with_reachy_math import voice_id, study_log
+from talk_with_reachy_math.study_recorder import StudyRecorder
 
 
 A, B = 1, 2
@@ -88,8 +88,8 @@ def test_a_new_connection_restarts_the_audio_offsets(study_dir: Path, ident: voi
 def test_audio_saving_can_be_switched_off(
     study_dir: Path, ident: voice_id.VoiceIdentifier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """With TALK_WITH_REACHY_SAVE_AUDIO=0 the speaker is still identified but no clip is kept."""
-    monkeypatch.setenv("TALK_WITH_REACHY_SAVE_AUDIO", "0")
+    """With TALK_WITH_REACHY_MATH_SAVE_AUDIO=0 the speaker is still identified but no clip is kept."""
+    monkeypatch.setenv("TALK_WITH_REACHY_MATH_SAVE_AUDIO", "0")
     study_log.start()
     recorder = StudyRecorder()
     recorder.connection_opened()

@@ -10,16 +10,16 @@ from pathlib import Path
 
 import pytest
 
-import talk_with_reachy.personality as personality_mod
-from talk_with_reachy.config import config
-from talk_with_reachy.avatars import (
+import talk_with_reachy_math.personality as personality_mod
+from talk_with_reachy_math.config import config
+from talk_with_reachy_math.avatars import (
     DEFAULT_AVATAR_FILE,
     avatar_id_for,
     read_avatar_svg,
 )
-from talk_with_reachy.personality import save_user_personality
-from talk_with_reachy.profile_store import DEFAULT_PROFILE_NAME
-from talk_with_reachy.personality_routes import (
+from talk_with_reachy_math.personality import save_user_personality
+from talk_with_reachy_math.profile_store import DEFAULT_PROFILE_NAME
+from talk_with_reachy_math.personality_routes import (
     RouteError,
     PersonalityOps,
     build_personality_ops,
@@ -99,7 +99,7 @@ def test_avatar_method_falls_back_for_unknown() -> None:
 def test_avatar_unavailable_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     """If even the default avatar cannot be read, avatar() surfaces a RouteError."""
     monkeypatch.setattr(
-        "talk_with_reachy.personality_routes.read_avatar_svg",
+        "talk_with_reachy_math.personality_routes.read_avatar_svg",
         lambda name: None,
     )
     with pytest.raises(RouteError) as ei:

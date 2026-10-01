@@ -7,7 +7,7 @@ pytest.importorskip("mcp_types")
 
 from mcp_types import Tool, TextContent, CallToolResult, ListToolsResult
 
-from talk_with_reachy.mcp_client import (
+from talk_with_reachy_math.mcp_client import (
     RemoteToolSpec,
     RemoteMcpToolClient,
     RemoteMcpServerConfig,

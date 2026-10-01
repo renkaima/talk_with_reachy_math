@@ -1,6 +1,6 @@
-# Talk with Reachy: study setup
+# Talk with Reachy Math: study setup
 
-This repository is a fork of Pollen Robotics' [Reachy Mini conversation app](https://github.com/pollen-robotics/reachy_mini_conversation_app). It adds study data collection to the app, changes one conversational behavior, and adds math practice:
+This app is [Talk with Reachy](https://github.com/renkaima/talk_with_reachy) plus math practice. Talk with Reachy is a fork of Pollen Robotics' [Reachy Mini conversation app](https://github.com/pollen-robotics/reachy_mini_conversation_app). Compared with the official app, this one adds study data collection, changes one conversational behavior, and adds math practice:
 
 1. **Timed transcripts.** Every finished utterance, by a person or by Reachy, is logged with its start time, end time, and duration. Each app run produces a JSONL file and a CSV copy of the same timeline.
 2. **Voice identification.** Each person utterance is matched against known voices and labeled with a speaker ID such as `P01` (a participant a researcher enrolled) or `V003` (a voice the app learned on its own).
@@ -12,14 +12,16 @@ This repository is a fork of Pollen Robotics' [Reachy Mini conversation app](htt
 
 UC's Office of Information Security declined the OneDrive integration on 2026-10-01. The OneDrive code is still in the repository but is switched off (`CLIENT_ID` in `onedrive_upload.py` is empty).
 
-The Python package is renamed to `talk_with_reachy` because Reachy Mini installs all apps into one shared environment. With the upstream name, installing this app would replace the official conversation app on the same robot.
+The Python package is named `talk_with_reachy_math` because Reachy Mini installs all apps into one shared environment. With another app's name, installing this app would replace that app; with its own name, it installs next to Talk with Reachy and the official conversation app.
+
+Talk with Reachy Math keeps its data apart from Talk with Reachy. It has its own data folder (`~/talk_with_reachy_math_data`), its own Google Drive folder (**My Drive → Talk with Reachy Math**), its own Google sign-in on the robot, and its own voice library, so participants enrolled in Talk with Reachy have to be enrolled again here. Its commands start with `talk-with-reachy-math` and its settings with `TALK_WITH_REACHY_MATH_`.
 
 ## What is recorded
 
-Everything is stored in one data folder: `/home/pollen/talk_with_reachy_data/` on the robot, or `~/talk_with_reachy_data/` on a Mac running the simulation.
+Everything is stored in one data folder: `/home/pollen/talk_with_reachy_math_data/` on the robot, or `~/talk_with_reachy_math_data/` on a Mac running the simulation.
 
 ```
-talk_with_reachy_data/
+talk_with_reachy_math_data/
 ├── transcripts/<robot>_<YYYYMMDD-HHMMSS>_<id>.jsonl   one file per app run
 ├── transcripts/<same name>.csv                         the same timeline as a spreadsheet
 ├── audio/<same name>/<seq>_<speaker ID>.wav            one clip per person utterance
@@ -120,7 +122,7 @@ There are two kinds of voices:
 - **Enrolled voices** (`P01`, `R01`, …) are registered by a researcher (see below). Their voiceprint does not change afterwards.
 - **Automatic voices** (`V001`, …) are created when an unfamiliar voice speaks long enough. Each confident later match refines the voiceprint slightly. A researcher can later give an automatic voice a participant ID with `link`.
 
-The thresholds come from a check on clean recorded speech (three English and three Mandarin speakers). In that check, every clip of one second or more was attributed to the right speaker; clips scored at least 0.47 against their own speaker and at most 0.34 against others. **This has not been validated on the voices of the study population or in a noisy day room.** Before relying on the speaker IDs, run a pilot in which an observer writes down who is speaking, and compare those notes with the transcript. Because every clip is saved, all utterances can be scored again later with a different threshold (`TALK_WITH_REACHY_VOICE_MATCH_THRESHOLD`) or a different model.
+The thresholds come from a check on clean recorded speech (three English and three Mandarin speakers). In that check, every clip of one second or more was attributed to the right speaker; clips scored at least 0.47 against their own speaker and at most 0.34 against others. **This has not been validated on the voices of the study population or in a noisy day room.** Before relying on the speaker IDs, run a pilot in which an observer writes down who is speaking, and compare those notes with the transcript. Because every clip is saved, all utterances can be scored again later with a different threshold (`TALK_WITH_REACHY_MATH_VOICE_MATCH_THRESHOLD`) or a different model.
 
 Known limits:
 
@@ -134,15 +136,15 @@ Known limits:
 The commands below change the voice library. Run them from the Mac, which connects to the robot over SSH (`reachy-mini.local` by default; prefix `ROBOT=<address>` to use another address, or `ROBOT=local` for the simulation on the Mac):
 
 ```bash
-bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh list
-bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh enroll P01 --name Mary
-bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh link V007 P02 --name Sam
-bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh link V009 V003
-bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh rename P01 "Mary J."
-bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh delete P01
+bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh list
+bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh enroll P01 --name Mary
+bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh link V007 P02 --name Sam
+bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh link V009 V003
+bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh rename P01 "Mary J."
+bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh delete P01
 ```
 
-On the robot itself, the same commands are `/venvs/apps_venv/bin/talk-with-reachy-voices <command>`.
+On the robot itself, the same commands are `/venvs/apps_venv/bin/talk-with-reachy-math-voices <command>`.
 
 - **`enroll P01 --name Mary`** registers a participant. After running it, let only that person talk with Reachy until they have spoken for about 20 seconds in total (`--seconds` changes this), which is usually one to two minutes of conversation. Speech from voices that are already enrolled (for example a researcher enrolled as `R01`) is recognized and skipped. Clips that disagree with the rest are left out of the voiceprint. An enrollment that is not completed within 15 minutes is cancelled. `--name` is the name Reachy may use for the person; leave it out if Reachy should not know their name.
 - **`list`** shows every voice, its kind, name, number of utterances, when it was last heard, and its earlier labels.
@@ -194,7 +196,7 @@ Each topic has three levels. Without a request from the child, practice stays on
 | Equations | 6.EE.7, 7.EE.4a | x + a = b or x − a = b | a·x = b | a·x + b = c |
 | Word problems | GSM8K | 2 steps | 3 steps | 4 steps |
 
-All answers are whole numbers except in the fractions and decimals topics. Word problems come from a bundled subset of 300 [GSM8K](https://github.com/openai/grade-school-math) training problems (MIT License; see `src/talk_with_reachy/math_data/GSM8K_LICENSE.txt`). The subset keeps problems of at most 35 words with a whole-number answer of at most 10,000 and drops topics that do not suit children, such as alcohol, gambling, weapons, and dieting. `deploy/make_word_problems.py` rebuilds it.
+All answers are whole numbers except in the fractions and decimals topics. Word problems come from a bundled subset of 300 [GSM8K](https://github.com/openai/grade-school-math) training problems (MIT License; see `src/talk_with_reachy_math/math_data/GSM8K_LICENSE.txt`). The subset keeps problems of at most 35 words with a whole-number answer of at most 10,000 and drops topics that do not suit children, such as alcohol, gambling, weapons, and dieting. `deploy/make_word_problems.py` rebuilds it.
 
 Levels change by a fixed rule, separately for each topic and child:
 
@@ -221,7 +223,7 @@ Limits to keep in mind:
 - `seconds_since_asked` runs from the moment Reachy received the problem, so it includes the time Reachy took to read it aloud.
 - The model decides when to call the math tools. If it skips `check_math_answer` and answers by itself, no `math_answer` event appears for that problem.
 
-Set `TALK_WITH_REACHY_MATH=0` to turn math practice off. The tools are in the default profile only; other profiles do not offer math practice unless `math_practice` is added to their tools.
+Set `TALK_WITH_REACHY_MATH_PRACTICE=0` to turn math practice off. The tools are in the default profile only; other profiles do not offer math practice unless `math_practice` is added to their tools.
 
 ## Privacy notes for the IRB application
 
@@ -239,24 +241,13 @@ Set `TALK_WITH_REACHY_MATH=0` to turn math practice off. The tools are in the de
 
 This app needs `reachy-mini` 1.10.0rc5 or newer. Update the robot from Reachy Mini Control first, on a network where the robot has internet access and your computer can reach the robot. An iPhone Personal Hotspot did not allow the second part in our tests.
 
-### 2. Create a Google sign-in for the app (one time)
+### 2. Google sign-in for the app (one time)
 
-The robot needs an OAuth client to sign in to Google. Create it in the Google Cloud Console:
+This app uses the same Google OAuth client as Talk with Reachy (Google Cloud project `talk-with-reachy`), so nothing new needs to be created in Google Cloud. `CLIENT_ID` in `src/talk_with_reachy_math/google_drive_upload.py` is already that client's ID.
 
-1. Open [console.cloud.google.com](https://console.cloud.google.com) and sign in with your UC Google account. Create a project named `Talk with Reachy`. If UC does not let you create projects, create it with a personal Google account instead; the robot can still sign in with the UC account later.
-2. Under **APIs & Services → Library**, find **Google Drive API** and click **Enable**.
-3. Under **Google Auth Platform → Branding**, enter the app name `Talk with Reachy` and your email address.
-4. Under **Google Auth Platform → Audience**, choose **Internal** if it is offered (only accounts in UC's Google organization can sign in). If only **External** is offered, choose it and then click **Publish app**. An External app left in *Testing* status loses its sign-in every 7 days, which would stop the uploads.
-5. Under **Google Auth Platform → Data Access**, click **Add or remove scopes** and add `https://www.googleapis.com/auth/drive.file`. This scope lets the app see and change only the files it creates. Google classifies it as non-sensitive, so the security review that broader Drive scopes require does not apply.
-6. Under **Google Auth Platform → Clients**, click **Create client**, choose the application type **TVs and Limited Input devices**, and name it `Talk with Reachy robot`. Copy the *Client ID* and the *Client secret*.
+The client secret is kept out of the code, because the GitHub repository is public. Copy `deploy/google_client_secret.txt` from the Talk with Reachy folder into this folder's `deploy/` (the file holds the secret as its only line). Git ignores this file. `deploy/publish_space.py` (step 3) writes the secret into the copy it uploads to the private Space, which is where robots install the app from, and `deploy/google_dry_run.sh` reads it on the Mac.
 
-Then put the Client ID in `src/talk_with_reachy/google_drive_upload.py`:
-
-```python
-CLIENT_ID = "<Client ID>.apps.googleusercontent.com"
-```
-
-Keep the Client secret out of the code, because the GitHub repository is public. Save it as the only line of `deploy/google_client_secret.txt`. Git ignores this file. `deploy/publish_space.py` (step 3) writes the secret into the copy it uploads to the private Space, which is where robots install the app from, and `deploy/google_dry_run.sh` reads it on the Mac.
+The Google consent screen, its home page, and its privacy policy belong to that shared client; they are set up in Talk with Reachy (its `deploy/site/`). Before the Google app is published, the privacy policy should also mention the math answers this app records.
 
 ### 3. Publish as a private Hugging Face Space
 
@@ -266,14 +257,14 @@ The easy way is one command in Terminal on a Mac:
 bash deploy/publish_to_hf.sh
 ```
 
-It sets up the Hugging Face tools inside `deploy/.deploy-venv` (nothing is installed system-wide), opens your browser to sign in to Hugging Face if needed, creates the private Space `<your-account>/talk_with_reachy`, and uploads the app. It stops if a Space with that name already exists and is public. Run it again after any code change to update the Space.
+It sets up the Hugging Face tools inside `deploy/.deploy-venv` (nothing is installed system-wide), opens your browser to sign in to Hugging Face if needed, creates the private Space `<your-account>/talk_with_reachy_math`, and uploads the app. It stops if a Space with that name already exists and is public. Run it again after any code change to update the Space.
 
 To do it by hand instead, create a new Space with SDK **Static** and visibility **Private**, then push this repository to it:
 
 ```bash
 git lfs install                      # the avatars and images are stored with Git LFS
-git remote add space https://huggingface.co/spaces/<your-account>/talk_with_reachy
-git push space talk-with-reachy:main
+git remote add space https://huggingface.co/spaces/<your-account>/talk_with_reachy_math
+git push space talk-with-reachy-math:main
 ```
 
 Keep the `reachy_mini_python_app` tag in the YAML header of `README.md`. The Control App finds apps by that tag.
@@ -282,11 +273,11 @@ The two GitHub workflows that sync to Hugging Face (`sync-hf-space.yml`, `pr-hf-
 
 ### 4. Install on the robot
 
-In Reachy Mini Control, sign in to Hugging Face with an account that can see the private Space. Open the app store and search for *Talk with Reachy*. The app appears with a **Private** badge; the store also has a *Private* filter. Install it like any other app. After publishing a new version, update or reinstall it the same way.
+In Reachy Mini Control, sign in to Hugging Face with an account that can see the private Space. Open the app store and search for *Talk with Reachy Math*. The app appears with a **Private** badge; the store also has a *Private* filter. Install it like any other app. After publishing a new version, update or reinstall it the same way.
 
 ### 5. Sign in to Google Drive (one time per device)
 
-Each device that uploads signs in once. Both use the same "Talk with Reachy" folder in My Drive.
+Each device that uploads signs in once. Both use the same "Talk with Reachy Math" folder in My Drive.
 
 **a. On the Mac, no robot needed.** Run:
 
@@ -294,17 +285,17 @@ Each device that uploads signs in once. Both use the same "Talk with Reachy" fol
 bash deploy/google_dry_run.sh
 ```
 
-It shows a code. Open [google.com/device](https://www.google.com/device) on any phone or computer, enter the code, and sign in with the Google account whose Drive should receive the files. The script then writes `connection_check.txt` to **My Drive → Talk with Reachy**, logs a two-line test conversation with the app's own code, and uploads it. It ends with "Everything works" and the names of the test files. You can delete them afterwards.
+It shows a code. Open [google.com/device](https://www.google.com/device) on any phone or computer, enter the code, and sign in with the Google account whose Drive should receive the files. The script then writes `connection_check.txt` to **My Drive → Talk with Reachy Math**, logs a two-line test conversation with the app's own code, and uploads it. It ends with "Everything works" and the names of the test files. You can delete them afterwards.
 
 This checks the whole Google side before a robot is involved. It also signs in the Mac, which is what the app uses when it runs in the Reachy Mini Control simulation. If Google says the sign-in is not allowed, the account's administrators do not allow this app; that cannot be fixed from the app.
 
-**b. On the robot,** once Talk with Reachy is installed and the robot is on the same network as the Mac, run on the Mac:
+**b. On the robot,** once Talk with Reachy Math is installed and the robot is on the same network as the Mac, run on the Mac:
 
 ```bash
 bash deploy/google_login_on_robot.sh            # or: ... google_login_on_robot.sh <robot-ip>
 ```
 
-SSH asks for the robot's password, and the robot shows a new code. Enter it at google.com/device the same way. The sign-in is saved in `/home/pollen/.config/talk_with_reachy/google_token.json`, readable only by the `pollen` user. A running app picks it up on its next upload pass; no restart is needed. After this, the robot uploads on its own wherever it has internet.
+SSH asks for the robot's password, and the robot shows a new code. Enter it at google.com/device the same way. The sign-in is saved in `/home/pollen/.config/talk_with_reachy_math/google_token.json`, readable only by the `pollen` user. A running app picks it up on its next upload pass; no restart is needed. After this, the robot uploads on its own wherever it has internet.
 
 ### 6. Enroll participants
 
@@ -312,7 +303,7 @@ Start the app, then enroll each consented participant as described in [Managing 
 
 ### 7. Check that it works
 
-Start the app, say a few sentences to Reachy, and wait up to five minutes. In Google Drive, under **My Drive → Talk with Reachy**, you should see `transcripts/` (a JSONL and a CSV file), `audio/` (one folder of clips per run), and `people/`. On the robot, `ls ~/talk_with_reachy_data/transcripts` shows the local copies.
+Start the app, say a few sentences to Reachy, and wait up to five minutes. In Google Drive, under **My Drive → Talk with Reachy Math**, you should see `transcripts/` (a JSONL and a CSV file), `audio/` (one folder of clips per run), and `people/`. On the robot, `ls ~/talk_with_reachy_math_data/transcripts` shows the local copies.
 
 ## Behavior to know about
 
@@ -329,40 +320,40 @@ All settings are optional environment variables. You can put them in the app's `
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `TALK_WITH_REACHY_LOGGING` | `1` | Set to `0` to turn all study logging off (transcripts, audio, voice ID). |
-| `TALK_WITH_REACHY_VOICE_ID` | `1` | Set to `0` to turn voice identification off. People are then logged as `unknown`, and Reachy goes back to the official app's shared memory. |
-| `TALK_WITH_REACHY_VOICE_MATCH_THRESHOLD` | `0.45` | Score needed to accept a voice match. |
-| `TALK_WITH_REACHY_SAVE_AUDIO` | `1` | Set to `0` to stop saving audio clips. Voice ID still works. |
-| `TALK_WITH_REACHY_DATA_DIR` | `~/talk_with_reachy_data` | Where study files are written. |
-| `TALK_WITH_REACHY_ROBOT_ID` | host name | First part of each file name; use it to tell robots apart. |
-| `TALK_WITH_REACHY_GOOGLE_CLIENT_ID` | `CLIENT_ID` in `google_drive_upload.py` | Google OAuth client ID. Google Drive upload is off when neither is set. |
-| `TALK_WITH_REACHY_GOOGLE_CLIENT_SECRET` | `CLIENT_SECRET` in `google_drive_upload.py` (empty in git; filled in the private Space from `deploy/google_client_secret.txt`) | Google OAuth client secret. |
-| `TALK_WITH_REACHY_GOOGLE_FOLDER` | `Talk with Reachy` | Name of the folder in My Drive. |
-| `TALK_WITH_REACHY_ONEDRIVE_CLIENT_ID` | empty | Turns on OneDrive upload instead, where an institution has approved the app registration. Google Drive takes precedence when both are set. |
-| `TALK_WITH_REACHY_ONEDRIVE_TENANT` | `TENANT` in `onedrive_upload.py` | Microsoft tenant for OneDrive. |
-| `TALK_WITH_REACHY_UPLOAD_INTERVAL_S` | `300` | Seconds between upload passes. |
-| `TALK_WITH_REACHY_MATH` | `1` | Set to `0` to turn math practice off. |
+| `TALK_WITH_REACHY_MATH_LOGGING` | `1` | Set to `0` to turn all study logging off (transcripts, audio, voice ID). |
+| `TALK_WITH_REACHY_MATH_VOICE_ID` | `1` | Set to `0` to turn voice identification off. People are then logged as `unknown`, and Reachy goes back to the official app's shared memory. |
+| `TALK_WITH_REACHY_MATH_VOICE_MATCH_THRESHOLD` | `0.45` | Score needed to accept a voice match. |
+| `TALK_WITH_REACHY_MATH_SAVE_AUDIO` | `1` | Set to `0` to stop saving audio clips. Voice ID still works. |
+| `TALK_WITH_REACHY_MATH_DATA_DIR` | `~/talk_with_reachy_math_data` | Where study files are written. |
+| `TALK_WITH_REACHY_MATH_ROBOT_ID` | host name | First part of each file name; use it to tell robots apart. |
+| `TALK_WITH_REACHY_MATH_GOOGLE_CLIENT_ID` | `CLIENT_ID` in `google_drive_upload.py` | Google OAuth client ID. Google Drive upload is off when neither is set. |
+| `TALK_WITH_REACHY_MATH_GOOGLE_CLIENT_SECRET` | `CLIENT_SECRET` in `google_drive_upload.py` (empty in git; filled in the private Space from `deploy/google_client_secret.txt`) | Google OAuth client secret. |
+| `TALK_WITH_REACHY_MATH_GOOGLE_FOLDER` | `Talk with Reachy Math` | Name of the folder in My Drive. |
+| `TALK_WITH_REACHY_MATH_ONEDRIVE_CLIENT_ID` | empty | Turns on OneDrive upload instead, where an institution has approved the app registration. Google Drive takes precedence when both are set. |
+| `TALK_WITH_REACHY_MATH_ONEDRIVE_TENANT` | `TENANT` in `onedrive_upload.py` | Microsoft tenant for OneDrive. |
+| `TALK_WITH_REACHY_MATH_UPLOAD_INTERVAL_S` | `300` | Seconds between upload passes. |
+| `TALK_WITH_REACHY_MATH_PRACTICE` | `1` | Set to `0` to turn math practice off. |
 | `TALK_WITH_REACHY_MATH_OFFER_AFTER_S` | `120` | Seconds of conversation before Reachy first offers math practice. |
 
 ## Where the changes are
 
 | File | Change |
 |---|---|
-| `src/talk_with_reachy/study_log.py` | New. Session files (JSONL and CSV), events, clock checks, and the single worker thread that does all study writing. |
-| `src/talk_with_reachy/study_recorder.py` | New. Turns realtime events into timed utterance records, saves audio clips, and sends speaker notes. |
-| `src/talk_with_reachy/audio_timeline.py` | New. Keeps the last two minutes of sent microphone audio, indexed the way the speech server indexes it. |
-| `src/talk_with_reachy/voice_id.py` | New. Speaker model, voice library, enrollment, and voice commands. |
-| `src/talk_with_reachy/voice_files.py`, `voices_cli.py`, `deploy/voices.sh` | New. The `talk-with-reachy-voices` command and its Mac wrapper. |
-| `src/talk_with_reachy/cloud_upload.py` | New. The background uploader that mirrors the data folder, shared by both cloud targets. |
-| `src/talk_with_reachy/google_drive_upload.py`, `deploy/google_dry_run.*`, `deploy/google_login_on_robot.sh` | New. Google sign-in (device code), Drive upload, the `talk-with-reachy-google-login` command, and their Mac helpers. |
-| `src/talk_with_reachy/onedrive_upload.py`, `deploy/onedrive_dry_run.*`, `deploy/copy_login_to_robot.sh` | New, currently off. Microsoft sign-in and OneDrive upload. |
-| `src/talk_with_reachy/huggingface_realtime.py` | Passes speech, transcript, audio, and response events to `study_recorder`, and can add a system note to the conversation. |
-| `src/talk_with_reachy/tools/background_tool_manager.py` | Logs `tool_started` and `tool_finished`. |
-| `src/talk_with_reachy/prompts.py`, `tools/remember.py`, `tools/forget.py` | Per-person memory when voice ID is on. |
-| `src/talk_with_reachy/console.py` | Logs microphone mute changes. |
-| `src/talk_with_reachy/math_practice.py`, `tools/math_practice.py`, `math_data/`, `deploy/make_word_problems.py` | New. Math problems, answer checking, levels, the three math tools, and the GSM8K subset. `profiles/default/profile.md` lists the tools, and `prompts.py` explains them to the model. |
-| `src/talk_with_reachy/main.py` | Starts and stops study logging around the conversation. |
+| `src/talk_with_reachy_math/study_log.py` | New. Session files (JSONL and CSV), events, clock checks, and the single worker thread that does all study writing. |
+| `src/talk_with_reachy_math/study_recorder.py` | New. Turns realtime events into timed utterance records, saves audio clips, and sends speaker notes. |
+| `src/talk_with_reachy_math/audio_timeline.py` | New. Keeps the last two minutes of sent microphone audio, indexed the way the speech server indexes it. |
+| `src/talk_with_reachy_math/voice_id.py` | New. Speaker model, voice library, enrollment, and voice commands. |
+| `src/talk_with_reachy_math/voice_files.py`, `voices_cli.py`, `deploy/voices.sh` | New. The `talk-with-reachy-math-voices` command and its Mac wrapper. |
+| `src/talk_with_reachy_math/cloud_upload.py` | New. The background uploader that mirrors the data folder, shared by both cloud targets. |
+| `src/talk_with_reachy_math/google_drive_upload.py`, `deploy/google_dry_run.*`, `deploy/google_login_on_robot.sh` | New. Google sign-in (device code), Drive upload, the `talk-with-reachy-math-google-login` command, and their Mac helpers. |
+| `src/talk_with_reachy_math/onedrive_upload.py`, `deploy/onedrive_dry_run.*`, `deploy/copy_login_to_robot.sh` | New, currently off. Microsoft sign-in and OneDrive upload. |
+| `src/talk_with_reachy_math/huggingface_realtime.py` | Passes speech, transcript, audio, and response events to `study_recorder`, and can add a system note to the conversation. |
+| `src/talk_with_reachy_math/tools/background_tool_manager.py` | Logs `tool_started` and `tool_finished`. |
+| `src/talk_with_reachy_math/prompts.py`, `tools/remember.py`, `tools/forget.py` | Per-person memory when voice ID is on. |
+| `src/talk_with_reachy_math/console.py` | Logs microphone mute changes. |
+| `src/talk_with_reachy_math/math_practice.py`, `tools/math_practice.py`, `math_data/`, `deploy/make_word_problems.py` | New. Math problems, answer checking, levels, the three math tools, and the GSM8K subset. `profiles/default/profile.md` lists the tools, and `prompts.py` explains them to the model. |
+| `src/talk_with_reachy_math/main.py` | Starts and stops study logging around the conversation. |
 | `tests/test_study_*.py`, `tests/test_voice_id.py`, `tests/test_audio_timeline.py`, `tests/test_google_drive_upload.py`, `tests/test_onedrive_upload.py` | New tests. Google, Microsoft Graph, and the speaker model are replaced by fakes. |
-| Everything else | Package rename only (`reachy_mini_conversation_app` → `talk_with_reachy`). |
+| Everything else | Package rename only (`reachy_mini_conversation_app` → `talk_with_reachy_math`). |
 
-In the upstream README, the command `reachy-mini-conversation-app` is `talk-with-reachy` in this fork.
+In the upstream README, the command `reachy-mini-conversation-app` is `talk-with-reachy-math` in this fork.

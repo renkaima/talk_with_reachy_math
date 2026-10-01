@@ -3,7 +3,7 @@
 from __future__ import annotations
 from types import SimpleNamespace
 
-from talk_with_reachy.audio.startup_config import (
+from talk_with_reachy_math.audio.startup_config import (
     AUDIO_STARTUP_CONFIG,
     WRITE_SETTLE_SECONDS,
     apply_audio_startup_config,

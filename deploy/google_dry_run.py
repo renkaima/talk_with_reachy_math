@@ -1,12 +1,12 @@
-"""Rehearse the Google Drive half of Talk with Reachy on a Mac, without a robot.
+"""Rehearse the Google Drive half of Talk with Reachy Math on a Mac, without a robot.
 
 1. Signs in to Google with a device code (the same sign-in the robot uses) and
-   writes connection_check.txt to My Drive > Talk with Reachy.
+   writes connection_check.txt to My Drive > Talk with Reachy Math.
 2. Logs a two-line fake conversation with the app's own study logger and stops
    it, which triggers the app's own final upload.
 3. Confirms the transcript and its CSV timeline reached Google Drive.
 
-The sign-in is saved in ~/.config/talk_with_reachy/google_token.json on this Mac,
+The sign-in is saved in ~/.config/talk_with_reachy_math/google_token.json on this Mac,
 which is what the app uses when it runs in the Reachy Mini Control simulation.
 Run through google_dry_run.sh.
 """
@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from talk_with_reachy import voice_id, study_log, google_drive_upload  # noqa: E402
+from talk_with_reachy_math import voice_id, study_log, google_drive_upload  # noqa: E402
 
 
 DRY_RUN_ROBOT_ID = "DRY-RUN-no-robot"
@@ -58,7 +58,7 @@ def main() -> int:
         return 1
 
     print("Step 2/2: logging a fake two-line conversation and uploading it with the app's own code ...")
-    data_dir = Path(tempfile.mkdtemp(prefix="talk_with_reachy_dry_run_"))
+    data_dir = Path(tempfile.mkdtemp(prefix="talk_with_reachy_math_dry_run_"))
     os.environ[study_log.LOGGING_ENABLED_ENV] = "1"
     os.environ[study_log.DATA_DIR_ENV] = str(data_dir)
     os.environ[study_log.ROBOT_ID_ENV] = DRY_RUN_ROBOT_ID

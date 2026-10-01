@@ -11,12 +11,12 @@ import pytest
 import test_huggingface_realtime as hf_tests
 from study_helpers import records
 
-from talk_with_reachy import memory, prompts, voice_id, study_log
-from talk_with_reachy.tools.forget import Forget
-from talk_with_reachy.tools.remember import Remember
-from talk_with_reachy.onedrive_upload import OneDriveUploader, upload_url
-from talk_with_reachy.tools.core_tools import ToolDependencies
-from talk_with_reachy.tools.background_tool_manager import BackgroundToolManager
+from talk_with_reachy_math import memory, prompts, voice_id, study_log
+from talk_with_reachy_math.tools.forget import Forget
+from talk_with_reachy_math.tools.remember import Remember
+from talk_with_reachy_math.onedrive_upload import OneDriveUploader, upload_url
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.background_tool_manager import BackgroundToolManager
 
 
 def _deps(instance_path: Path | None = None) -> ToolDependencies:

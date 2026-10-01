@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools import play_emotion as play_emotion_module
-from talk_with_reachy.tools.core_tools import ToolDependencies
-from talk_with_reachy.tools.play_emotion import (
+from talk_with_reachy_math.tools import play_emotion as play_emotion_module
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.play_emotion import (
     EMOTION_INTENTS,
     PlayEmotion,
     resolve_emotion_name,

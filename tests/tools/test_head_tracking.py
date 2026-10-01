@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools.core_tools import ToolDependencies
-from talk_with_reachy.tools.head_tracking import HeadTracking
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.head_tracking import HeadTracking
 
 
 @pytest.mark.asyncio

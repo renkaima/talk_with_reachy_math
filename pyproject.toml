@@ -3,8 +3,8 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "talk_with_reachy"
-version = "1.2.0"
+name = "talk_with_reachy_math"
+version = "1.0.0"
 authors = [{ name = "Pollen Robotics", email = "contact@pollen-robotics.com" }]
 description = ""
 readme = "README.md"
@@ -48,10 +48,10 @@ dev = [
 ]
 
 [project.scripts]
-talk-with-reachy = "talk_with_reachy.main:main"
-talk-with-reachy-onedrive-login = "talk_with_reachy.onedrive_upload:login_main"
-talk-with-reachy-google-login = "talk_with_reachy.google_drive_upload:login_main"
-talk-with-reachy-voices = "talk_with_reachy.voices_cli:main"
+talk-with-reachy-math = "talk_with_reachy_math.main:main"
+talk-with-reachy-math-onedrive-login = "talk_with_reachy_math.onedrive_upload:login_main"
+talk-with-reachy-math-google-login = "talk_with_reachy_math.google_drive_upload:login_main"
+talk-with-reachy-math-voices = "talk_with_reachy_math.voices_cli:main"
 
 [tool.uv]
 exclude-newer = "7 days"
@@ -61,7 +61,7 @@ exclude-newer = "7 days"
 "reachy-mini-dances-library" = false
 
 [project.entry-points."reachy_mini_apps"]
-talk_with_reachy = "talk_with_reachy.main:ReachyMiniConversationApp"
+talk_with_reachy_math = "talk_with_reachy_math.main:ReachyMiniConversationApp"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -71,12 +71,12 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-talk_with_reachy = [
+talk_with_reachy_math = [
   "static/**/*",
   ".env.example",
   "math_data/*",
 ]
-talk_with_reachy_data = [
+talk_with_reachy_math_data = [
   "profiles/**/*.md",
 ]
 
@@ -104,7 +104,7 @@ ignore = [
 length-sort = true
 lines-after-imports = 2
 no-lines-before = ["standard-library", "local-folder"]
-known-local-folder = ["talk_with_reachy"]
+known-local-folder = ["talk_with_reachy_math"]
 known-first-party = ["reachy_mini", "reachy_mini_dances_library"]
 split-on-trailing-comma = true
 

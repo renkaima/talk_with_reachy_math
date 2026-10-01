@@ -3,7 +3,7 @@ import asyncio
 import numpy as np
 import pytest
 
-from talk_with_reachy.streaming import (
+from talk_with_reachy_math.streaming import (
     AdditionalOutputs,
     wait_for_item,
     audio_to_int16,

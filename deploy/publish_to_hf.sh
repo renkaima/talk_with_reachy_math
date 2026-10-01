@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Publish Talk with Reachy as a private Hugging Face Space.
+# Publish Talk with Reachy Math as a private Hugging Face Space.
 #
-#   bash ~/ReachyMini/talk_with_reachy/deploy/publish_to_hf.sh
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/publish_to_hf.sh
 #
 # Installs the Hugging Face tools into deploy/.deploy-venv (nothing system-wide),
 # signs you in to Hugging Face through your browser if needed, creates the
-# private Space <your-account>/talk_with_reachy, and uploads the app.
+# private Space <your-account>/talk_with_reachy_math, and uploads the app.
 # Safe to run again: it updates the same Space.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VENV="$REPO_DIR/deploy/.deploy-venv"
-SPACE_NAME="${SPACE_NAME:-talk_with_reachy}"
+SPACE_NAME="${SPACE_NAME:-talk_with_reachy_math}"
 HUB_REQ='huggingface_hub>=1.17,<2'
 
-if ! grep -Eq '^CLIENT_ID = ".+\.apps\.googleusercontent\.com"' "$REPO_DIR/src/talk_with_reachy/google_drive_upload.py"; then
-  echo "Note: CLIENT_ID in src/talk_with_reachy/google_drive_upload.py is empty, so this version"
+if ! grep -Eq '^CLIENT_ID = ".+\.apps\.googleusercontent\.com"' "$REPO_DIR/src/talk_with_reachy_math/google_drive_upload.py"; then
+  echo "Note: CLIENT_ID in src/talk_with_reachy_math/google_drive_upload.py is empty, so this version"
   echo "keeps study files on the robot only (no Google Drive upload). Publishing anyway."
 elif [ ! -s "$REPO_DIR/deploy/google_client_secret.txt" ]; then
   echo "Note: deploy/google_client_secret.txt is missing, so robots that install this version"

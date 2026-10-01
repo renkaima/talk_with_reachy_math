@@ -2,10 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools.core_tools import ToolDependencies
-from talk_with_reachy.tools.task_status import TaskStatus
-from talk_with_reachy.tools.tool_constants import ToolState
-from talk_with_reachy.tools.background_tool_manager import ToolProgress, BackgroundTool
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.task_status import TaskStatus
+from talk_with_reachy_math.tools.tool_constants import ToolState
+from talk_with_reachy_math.tools.background_tool_manager import ToolProgress, BackgroundTool
 
 
 def _deps() -> ToolDependencies:

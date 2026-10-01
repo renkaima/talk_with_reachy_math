@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-import talk_with_reachy.config as config_mod
-from talk_with_reachy.profile_store import write_profile
+import talk_with_reachy_math.config as config_mod
+from talk_with_reachy_math.profile_store import write_profile
 
 
 def test_config_raises_on_external_profile_name_collision(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

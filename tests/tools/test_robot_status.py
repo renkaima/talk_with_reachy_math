@@ -2,9 +2,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools import robot_status as robot_status_module
-from talk_with_reachy.daemon_api import DaemonApiError
-from talk_with_reachy.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools import robot_status as robot_status_module
+from talk_with_reachy_math.daemon_api import DaemonApiError
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
 
 
 def _deps() -> ToolDependencies:

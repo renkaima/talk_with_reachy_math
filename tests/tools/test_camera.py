@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools.camera import Camera
-from talk_with_reachy.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.camera import Camera
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
 
 
 @pytest.mark.asyncio

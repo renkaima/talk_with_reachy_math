@@ -2,10 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools import forget as forget_module
-from talk_with_reachy.memory import MemoryFact, ForgetMemoryResult
-from talk_with_reachy.tools.forget import Forget
-from talk_with_reachy.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools import forget as forget_module
+from talk_with_reachy_math.memory import MemoryFact, ForgetMemoryResult
+from talk_with_reachy_math.tools.forget import Forget
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
 
 
 def _deps() -> ToolDependencies:

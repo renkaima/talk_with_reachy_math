@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 from study_helpers import SR, FakeEmbedder, tone, basis
 
-from talk_with_reachy import memory, voice_id, voices_cli
-from talk_with_reachy.voice_files import people_dir, person_dir, requests_dir
+from talk_with_reachy_math import memory, voice_id, voices_cli
+from talk_with_reachy_math.voice_files import people_dir, person_dir, requests_dir
 
 
 A, B, C, MIX = 1, 2, 3, 9
@@ -210,7 +210,7 @@ def test_cli_queues_a_command_that_the_app_applies(
     ident: voice_id.VoiceIdentifier, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The command line only drops a request; the identifier applies it and logs the result."""
-    monkeypatch.setenv("TALK_WITH_REACHY_DATA_DIR", str(ident.data_dir))
+    monkeypatch.setenv("TALK_WITH_REACHY_MATH_DATA_DIR", str(ident.data_dir))
     monkeypatch.setattr(voices_cli, "WAIT_FOR_APP_S", 0.0)
 
     assert voices_cli.main(["enroll", "P01", "--name", "Mary", "--seconds", "5"]) == 0
@@ -226,7 +226,7 @@ def test_cli_lists_voices(
     ident: voice_id.VoiceIdentifier, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """``list`` shows enrolled voices first."""
-    monkeypatch.setenv("TALK_WITH_REACHY_DATA_DIR", str(ident.data_dir))
+    monkeypatch.setenv("TALK_WITH_REACHY_MATH_DATA_DIR", str(ident.data_dir))
     ident.assign(tone(B, 3), SR)
     ident.library.register("P01", ident._embedder.embed(tone(A, 1), SR), "Mary")  # type: ignore[union-attr]
 

@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-from talk_with_reachy import study_log
+from talk_with_reachy_math import study_log
 
 
 SR = 16000

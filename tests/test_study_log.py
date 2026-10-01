@@ -7,7 +7,7 @@ from datetime import datetime
 import pytest
 from study_helpers import records, csv_rows, wait_for_writes
 
-from talk_with_reachy import study_log
+from talk_with_reachy_math import study_log
 
 
 def _utterance(speaker: str, text: str, start_offset_s: float, seconds: float, **fields: object) -> None:

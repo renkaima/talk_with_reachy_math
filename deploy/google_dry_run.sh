@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Check the Google Drive upload end to end on this Mac, without a robot.
 #
-#   bash ~/ReachyMini/talk_with_reachy/deploy/google_dry_run.sh
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/google_dry_run.sh
 #
 # Shows a code to enter at google.com/device, then logs and uploads a two-line
 # test conversation with the app's own code. Nothing is installed system-wide.
@@ -38,9 +38,9 @@ else
 fi
 
 SECRET_FILE="$REPO_DIR/deploy/google_client_secret.txt"
-if [ -z "${TALK_WITH_REACHY_GOOGLE_CLIENT_SECRET:-}" ] && [ -s "$SECRET_FILE" ]; then
-  TALK_WITH_REACHY_GOOGLE_CLIENT_SECRET="$(tr -d '[:space:]' < "$SECRET_FILE")"
-  export TALK_WITH_REACHY_GOOGLE_CLIENT_SECRET
+if [ -z "${TALK_WITH_REACHY_MATH_GOOGLE_CLIENT_SECRET:-}" ] && [ -s "$SECRET_FILE" ]; then
+  TALK_WITH_REACHY_MATH_GOOGLE_CLIENT_SECRET="$(tr -d '[:space:]' < "$SECRET_FILE")"
+  export TALK_WITH_REACHY_MATH_GOOGLE_CLIENT_SECRET
 fi
 
 "$VENV/bin/python" "$REPO_DIR/deploy/google_dry_run.py"

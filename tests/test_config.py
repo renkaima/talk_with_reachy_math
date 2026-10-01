@@ -2,7 +2,7 @@
 
 import pytest
 
-from talk_with_reachy import config
+from talk_with_reachy_math import config
 
 
 @pytest.mark.parametrize(

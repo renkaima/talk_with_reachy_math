@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools.core_tools import ToolDependencies
-from talk_with_reachy.tools.idle_do_nothing import IdleDoNothing
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.idle_do_nothing import IdleDoNothing
 
 
 def _deps() -> ToolDependencies:

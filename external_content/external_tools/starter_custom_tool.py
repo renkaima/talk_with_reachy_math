@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from talk_with_reachy.tools.core_tools import Tool, ToolDependencies
+from talk_with_reachy_math.tools.core_tools import Tool, ToolDependencies
 
 
 logger = logging.getLogger(__name__)

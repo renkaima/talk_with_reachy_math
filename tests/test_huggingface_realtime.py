@@ -9,13 +9,13 @@ from unittest.mock import AsyncMock, MagicMock
 import numpy as np
 import pytest
 
-import talk_with_reachy.conversation_handler as conv_mod
-import talk_with_reachy.huggingface_realtime as hf_mod
-from talk_with_reachy.config import config, get_default_voice
-from talk_with_reachy.streaming import AdditionalOutputs
-from talk_with_reachy.tools.core_tools import ToolDependencies
-from talk_with_reachy.huggingface_realtime import HuggingFaceRealtimeHandler
-from talk_with_reachy.tools.background_tool_manager import ToolState, ToolNotification
+import talk_with_reachy_math.conversation_handler as conv_mod
+import talk_with_reachy_math.huggingface_realtime as hf_mod
+from talk_with_reachy_math.config import config, get_default_voice
+from talk_with_reachy_math.streaming import AdditionalOutputs
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.huggingface_realtime import HuggingFaceRealtimeHandler
+from talk_with_reachy_math.tools.background_tool_manager import ToolState, ToolNotification
 
 
 HF_DEFAULT_VOICE = get_default_voice()

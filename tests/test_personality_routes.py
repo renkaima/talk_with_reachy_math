@@ -10,22 +10,22 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from reachy_mini.apps.jsonrpc_server import JsonRpcServer
-import talk_with_reachy.personality as personality_mod
-from talk_with_reachy.config import DEFAULT_PROFILES_DIRECTORY, config
-from talk_with_reachy.profile_store import (
+import talk_with_reachy_math.personality as personality_mod
+from talk_with_reachy_math.config import DEFAULT_PROFILES_DIRECTORY, config
+from talk_with_reachy_math.profile_store import (
     write_profile,
     read_profile_from_directory,
     read_packaged_default_profile,
 )
-from talk_with_reachy.profile_toolsets import (
+from talk_with_reachy_math.profile_toolsets import (
     read_profile_tool_override,
     write_profile_tool_override,
 )
-from talk_with_reachy.personality_routes import (
+from talk_with_reachy_math.personality_routes import (
     build_personality_ops,
     register_personality_methods,
 )
-from talk_with_reachy.profile_tool_routes import register_profile_tool_methods
+from talk_with_reachy_math.profile_tool_routes import register_profile_tool_methods
 
 
 def _rpc_call(client: TestClient, method: str, params: dict[str, object] | None = None) -> dict[str, Any]:

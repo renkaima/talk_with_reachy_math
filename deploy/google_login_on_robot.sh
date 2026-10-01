@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sign the robot in to Google Drive, from this Mac.
 #
-#   bash ~/ReachyMini/talk_with_reachy/deploy/google_login_on_robot.sh [robot-address]
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/google_login_on_robot.sh [robot-address]
 #
 # robot-address defaults to reachy-mini.local; use the robot's IP if that name does
 # not resolve. SSH asks for the robot's password. The robot then shows a code: open
@@ -10,4 +10,4 @@
 set -euo pipefail
 
 ROBOT="${1:-reachy-mini.local}"
-exec ssh -t "pollen@$ROBOT" /venvs/apps_venv/bin/talk-with-reachy-google-login
+exec ssh -t "pollen@$ROBOT" /venvs/apps_venv/bin/talk-with-reachy-math-google-login

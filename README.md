@@ -1,11 +1,11 @@
 ---
-title: Talk with Reachy
-emoji: 🎤
+title: Talk with Reachy Math
+emoji: 🔢
 colorFrom: red
 colorTo: blue
 sdk: static
 pinned: false
-short_description: Conversation app that logs timed, speaker-labeled transcripts
+short_description: Spoken math practice with speaker-labeled study logs
 suggested_storage: large
 tags:
  - reachy_mini
@@ -14,9 +14,9 @@ tags:
 
 # Reachy Mini conversation app
 
-> **Talk with Reachy fork.** This repository is a modified copy of Pollen Robotics' [reachy_mini_conversation_app](https://github.com/pollen-robotics/reachy_mini_conversation_app) and is distributed under the same Apache 2.0 license. The changes are the commits after upstream commit `5eb39ed` in the git history. This fork is not affiliated with or endorsed by Pollen Robotics; "Reachy Mini" names the robot that the app runs on.
+> **Talk with Reachy Math.** This app is a modified copy of [Talk with Reachy](https://github.com/renkaima/talk_with_reachy), which is itself a modified copy of Pollen Robotics' [reachy_mini_conversation_app](https://github.com/pollen-robotics/reachy_mini_conversation_app). All three are distributed under the Apache 2.0 license. The changes from Talk with Reachy are the commits after commit `624b78b` in the git history, and the changes from Pollen's app are the commits after upstream commit `5eb39ed`. This app is not affiliated with or endorsed by Pollen Robotics; "Reachy Mini" names the robot that the app runs on.
 >
-> For a research study, this copy logs every utterance with start and end times, identifies speakers by voice, keeps an audio clip of each person utterance, logs robot actions and system events, and uploads everything to Google Drive directly from the robot. Reachy also knows who is speaking and keeps separate memories per person. It also offers spoken math practice for children aged about 10 to 13. See [STUDY_SETUP.md](STUDY_SETUP.md) for what it records and how to set it up. The command `reachy-mini-conversation-app` below is `talk-with-reachy` here.
+> It does everything Talk with Reachy does for a research study: it logs every utterance with start and end times, identifies speakers by voice, keeps an audio clip of each person utterance, logs robot actions and system events, keeps separate memories per person, and uploads everything to Google Drive directly from the robot. On top of that, Reachy offers spoken math practice to children aged about 10 to 13: it reads problems aloud, the app checks the answers in code, and each child's level adapts as they go. See [STUDY_SETUP.md](STUDY_SETUP.md) for what it records and how to set it up. The command `reachy-mini-conversation-app` below is `talk-with-reachy-math` here.
 
 Conversational app for the Reachy Mini robot combining realtime voice, vision, personality-aware tools, and choreographed motion.
 

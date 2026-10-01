@@ -2,9 +2,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools import dance as dance_module
-from talk_with_reachy.tools.dance import Dance, get_available_dances_and_descriptions
-from talk_with_reachy.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools import dance as dance_module
+from talk_with_reachy_math.tools.dance import Dance, get_available_dances_and_descriptions
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
 
 
 class _FakeDanceQueueMove:

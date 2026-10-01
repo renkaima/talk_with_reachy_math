@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Check the OneDrive upload end to end on this Mac, without a robot.
 #
-#   bash ~/ReachyMini/talk_with_reachy/deploy/onedrive_dry_run.sh
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/onedrive_dry_run.sh
 #
 # Opens a browser for your UC sign-in, then logs and uploads a two-line test
 # conversation with the app's own code. Nothing is installed system-wide.

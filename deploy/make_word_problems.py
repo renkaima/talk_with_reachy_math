@@ -1,4 +1,4 @@
-"""Rebuild src/talk_with_reachy/math_data/word_problems.jsonl from GSM8K.
+"""Rebuild src/talk_with_reachy_math/math_data/word_problems.jsonl from GSM8K.
 
 GSM8K (https://github.com/openai/grade-school-math, MIT License) has 7,473 training
 problems written for middle-school students. This keeps the ones that suit a spoken
@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 
 
-OUT = Path(__file__).resolve().parent.parent / "src" / "talk_with_reachy" / "math_data" / "word_problems.jsonl"
+OUT = Path(__file__).resolve().parent.parent / "src" / "talk_with_reachy_math" / "math_data" / "word_problems.jsonl"
 PER_LEVEL = 100
 MAX_WORDS = 35
 BLOCKLIST = re.compile(

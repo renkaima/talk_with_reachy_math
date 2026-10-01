@@ -1,4 +1,4 @@
-"""Create the private Hugging Face Space for Talk with Reachy and upload this repository to it.
+"""Create the private Hugging Face Space for Talk with Reachy Math and upload this repository to it.
 
 Called by publish_to_hf.sh after you have signed in with `hf auth login`.
 Usage: python publish_space.py <repo-dir> <space-name>
@@ -11,7 +11,7 @@ from huggingface_hub import HfApi
 
 
 SECRET_FILE = "deploy/google_client_secret.txt"  # git-ignored; holds only the Google client secret
-MODULE_FILE = "src/talk_with_reachy/google_drive_upload.py"
+MODULE_FILE = "src/talk_with_reachy_math/google_drive_upload.py"
 SECRET_LINE = 'CLIENT_SECRET = ""'
 
 # Files that are local tooling or caches, not part of the app.
@@ -81,7 +81,7 @@ def main() -> int:
         repo_type="space",
         folder_path=repo_dir,
         ignore_patterns=IGNORE,
-        commit_message="Deploy Talk with Reachy",
+        commit_message="Deploy Talk with Reachy Math",
     )
     upload_client_secret(api, repo_id, repo_dir)
     print(f"Done: https://huggingface.co/spaces/{repo_id}")

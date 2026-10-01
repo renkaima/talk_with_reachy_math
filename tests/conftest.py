@@ -16,9 +16,9 @@ if str(SRC_PATH) not in sys.path:
 # local .env and fail before tests run.
 os.environ["REACHY_MINI_SKIP_DOTENV"] = "1"
 # Keep test runs from writing transcript files into the real home directory.
-os.environ["TALK_WITH_REACHY_LOGGING"] = "0"
+os.environ["TALK_WITH_REACHY_MATH_LOGGING"] = "0"
 # Math practice adds guidance to the prompt; tests that need it turn it back on.
-os.environ["TALK_WITH_REACHY_MATH"] = "0"
+os.environ["TALK_WITH_REACHY_MATH_PRACTICE"] = "0"
 os.environ.pop("REACHY_MINI_CUSTOM_PROFILE", None)
 os.environ.pop("REACHY_MINI_EXTERNAL_PROFILES_DIRECTORY", None)
 os.environ.pop("REACHY_MINI_EXTERNAL_TOOLS_DIRECTORY", None)
@@ -30,7 +30,7 @@ import pytest  # noqa: E402
 @pytest.fixture
 def study_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
     """Turn study logging on into a temp folder, with voice ID and OneDrive upload off."""
-    from talk_with_reachy import voice_id, study_log, onedrive_upload, google_drive_upload
+    from talk_with_reachy_math import voice_id, study_log, onedrive_upload, google_drive_upload
 
     monkeypatch.setenv(study_log.LOGGING_ENABLED_ENV, "1")
     monkeypatch.setenv(study_log.DATA_DIR_ENV, str(tmp_path))

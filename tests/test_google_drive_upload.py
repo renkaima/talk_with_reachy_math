@@ -12,8 +12,8 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 
-from talk_with_reachy import cloud_upload, onedrive_upload, google_drive_upload
-from talk_with_reachy.google_drive_upload import GoogleDriveUploader, GoogleTokenProvider
+from talk_with_reachy_math import cloud_upload, onedrive_upload, google_drive_upload
+from talk_with_reachy_math.google_drive_upload import GoogleDriveUploader, GoogleTokenProvider
 
 
 class FakeDrive:
@@ -104,7 +104,7 @@ def _uploader(data_dir: Path, drive: FakeDrive) -> GoogleDriveUploader:
 
 
 def test_files_are_mirrored_into_matching_folders(tmp_path: Path) -> None:
-    """Each folder is created once under "Talk with Reachy"; each file lands in its own folder."""
+    """Each folder is created once under "Talk with Reachy Math"; each file lands in its own folder."""
     drive = FakeDrive()
     _write(tmp_path, "transcripts/r_1.jsonl", "{}\n")
     _write(tmp_path, "transcripts/r_1.csv", "seq\n")
@@ -113,7 +113,7 @@ def test_files_are_mirrored_into_matching_folders(tmp_path: Path) -> None:
     assert _uploader(tmp_path, drive).upload_pending() == 3
 
     folders = {i["name"]: (item_id, i["parent"]) for item_id, i in drive.items.items() if i["folder"]}
-    top_id, top_parent = folders["Talk with Reachy"]
+    top_id, top_parent = folders["Talk with Reachy Math"]
     assert top_parent == "root"
     assert folders["transcripts"][1] == top_id and folders["audio"][1] == top_id
     assert folders["r_1"][1] == folders["audio"][0]
@@ -140,14 +140,14 @@ def test_a_growing_file_is_updated_in_place(tmp_path: Path) -> None:
 def test_a_second_device_reuses_the_existing_folder_and_files(tmp_path: Path) -> None:
     """Without local IDs (another device, or a new data folder), existing items are found, not duplicated."""
     drive = FakeDrive()
-    top = drive.add("Talk with Reachy", "root", folder=True)
+    top = drive.add("Talk with Reachy Math", "root", folder=True)
     transcripts = drive.add("transcripts", top, folder=True)
     drive.add("r_1.jsonl", transcripts, folder=False)
     _write(tmp_path, "transcripts/r_1.jsonl", "new")
 
     _uploader(tmp_path, drive).upload_pending()
 
-    assert [i["name"] for i in drive.items.values() if i["folder"]] == ["Talk with Reachy", "transcripts"]
+    assert [i["name"] for i in drive.items.values() if i["folder"]] == ["Talk with Reachy Math", "transcripts"]
     (only,) = drive.files("r_1.jsonl")
     assert only["content"] == b"new"
 
@@ -159,7 +159,7 @@ def test_files_and_folders_deleted_in_drive_are_recreated(tmp_path: Path) -> Non
     uploader = _uploader(tmp_path, drive)
     uploader.upload_pending()
 
-    drive.items.clear()  # the whole "Talk with Reachy" folder was deleted
+    drive.items.clear()  # the whole "Talk with Reachy Math" folder was deleted
     path.write_text("ab", encoding="utf-8")
     assert uploader.upload_pending() == 1
     (only,) = drive.files("r_1.jsonl")

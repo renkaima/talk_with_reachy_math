@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from talk_with_reachy.audio_timeline import AudioTimeline
+from talk_with_reachy_math.audio_timeline import AudioTimeline
 
 
 SR = 16000

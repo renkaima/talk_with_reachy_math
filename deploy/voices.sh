@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Manage the voices Talk with Reachy recognizes, from a Mac.
+# Manage the voices Talk with Reachy Math recognizes, from a Mac.
 #
-#   bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh list
-#   bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh enroll P01 --name Mary
-#   bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh link V007 P02 --name Sam
-#   bash ~/ReachyMini/talk_with_reachy/deploy/voices.sh delete P01
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh list
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh enroll P01 --name Mary
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh link V007 P02 --name Sam
+#   bash ~/ReachyMini/talk_with_reachy_math/deploy/voices.sh delete P01
 #
 # By default the command runs on the robot over SSH (reachy-mini.local; set
 # ROBOT=<address> to use another name or an IP). SSH asks for the robot's password.
@@ -20,8 +20,8 @@ if [ "$#" -eq 0 ]; then
 fi
 
 if [ "$ROBOT" = "local" ]; then
-  PYTHONPATH="$HERE/src" exec python3 -m talk_with_reachy.voices_cli "$@"
+  PYTHONPATH="$HERE/src" exec python3 -m talk_with_reachy_math.voices_cli "$@"
 fi
 
 quoted=$(printf '%q ' "$@")
-exec ssh -t "pollen@$ROBOT" "/venvs/apps_venv/bin/talk-with-reachy-voices $quoted"
+exec ssh -t "pollen@$ROBOT" "/venvs/apps_venv/bin/talk-with-reachy-math-voices $quoted"

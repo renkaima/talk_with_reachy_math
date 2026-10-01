@@ -6,15 +6,15 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-import talk_with_reachy.config as config_mod
-import talk_with_reachy.prompts as prompts_mod
-import talk_with_reachy.personality as headless_mod
-import talk_with_reachy.profile_store as profile_store_mod
-from talk_with_reachy.config import DEFAULT_PROFILES_DIRECTORY, config
-from talk_with_reachy.personality import (
+import talk_with_reachy_math.config as config_mod
+import talk_with_reachy_math.prompts as prompts_mod
+import talk_with_reachy_math.personality as headless_mod
+import talk_with_reachy_math.profile_store as profile_store_mod
+from talk_with_reachy_math.config import DEFAULT_PROFILES_DIRECTORY, config
+from talk_with_reachy_math.personality import (
     list_personalities,
 )
-from talk_with_reachy.profile_store import read_profile, write_profile, read_profile_from_directory
+from talk_with_reachy_math.profile_store import read_profile, write_profile, read_profile_from_directory
 
 
 # Path characters budget computation
@@ -24,16 +24,16 @@ from talk_with_reachy.profile_store import read_profile, write_profile, read_pro
 # Project files (WINDOWS_PATH_BUDGET = 130):
 #   C:\Users\<username(20)>
 #     \.cache\huggingface\hub
-#     \spaces--pollen-robotics--talk_with_reachy
+#     \spaces--pollen-robotics--talk_with_reachy_math
 #     \snapshots\<commit_hash(40)>\
 #   = 158 characters  =>  101 remaining to 259.
 #   The project root folder is not cloned in the snapshot, so we add it
-#   back to the budget: 101 + len("talk_with_reachy\") (29) = 130.
+#   back to the budget: 101 + len("talk_with_reachy_math\") (29) = 130.
 #
 # Wheel files (WINDOWS_WHEEL_PATH_BUDGET = 71):
 #   C:\Users\<username(20)>
 #     \.cache\huggingface\hub
-#     \spaces--pollen-robotics--talk_with_reachy
+#     \spaces--pollen-robotics--talk_with_reachy_math
 #     \snapshots\<commit_hash(40)>
 #     \build\bdist.win-amd64\wheel\
 #   = 186 characters  =>  73 remaining to 259.
@@ -137,7 +137,7 @@ def test_explicit_default_profile_does_not_fall_back_to_itself(
     monkeypatch.setattr(config, "REACHY_MINI_CUSTOM_PROFILE", "default")
     monkeypatch.setattr(profile_store_mod, "DEFAULT_PROFILES_DIRECTORY", tmp_path)
 
-    with caplog.at_level(logging.WARNING, logger="talk_with_reachy.prompts"):
+    with caplog.at_level(logging.WARNING, logger="talk_with_reachy_math.prompts"):
         with pytest.raises(RuntimeError, match="Default profile has no usable instructions"):
             prompts_mod.get_session_instructions(instance_path=tmp_path)
 

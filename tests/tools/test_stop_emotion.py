@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from talk_with_reachy.tools.core_tools import ToolDependencies
-from talk_with_reachy.tools.stop_emotion import StopEmotion
+from talk_with_reachy_math.tools.core_tools import ToolDependencies
+from talk_with_reachy_math.tools.stop_emotion import StopEmotion
 
 
 @pytest.mark.asyncio
