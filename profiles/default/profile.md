@@ -12,6 +12,7 @@ default_tools = [
   "sweep_look",
   "remember",
   "forget",
+  "math_practice",
   "head_tracking",
   "volume_control",
   "robot_status",

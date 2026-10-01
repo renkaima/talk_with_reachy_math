@@ -26,6 +26,7 @@ from openai.types.realtime import (
 from websockets.exceptions import ConnectionClosedError
 from openai.types.realtime.realtime_audio_input_turn_detection_param import ServerVad
 
+from talk_with_reachy import math_practice
 from talk_with_reachy.tools import core_tools
 from talk_with_reachy.config import (
     HF_LOCAL_CONNECTION_MODE,
@@ -458,6 +459,14 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
         self._mark_activity("say")
         await self._safe_response_create()
 
+    async def _maybe_offer_math(self) -> None:
+        """Ask Reachy to offer math practice when the conversation has gone on long enough."""
+        if "next_math_problem" not in core_tools.get_tools():
+            return
+        note = math_practice.coach().offer_note_if_due()
+        if note is not None:
+            await self._send_system_note(note)
+
     async def _send_system_note(self, text: str) -> None:
         """Add a system message to the conversation without asking for a reply."""
         if not self.connection:
@@ -752,6 +761,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
             except Exception:
                 pass
             self.study.connection_opened()
+            math_practice.coach().connection_opened()
 
             response_sender_task: asyncio.Task[None] | None = None
             closed_reason = "closed"
@@ -859,6 +869,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
 
                         await self.output_queue.put(AdditionalOutputs({"role": "user", "content": transcript}))
                         self.study.user_transcript(str(getattr(event, "item_id", "") or ""), transcript)
+                        await self._maybe_offer_math()
                         self._emit_transcript("user", transcript, True)
 
                     # Handle assistant transcription

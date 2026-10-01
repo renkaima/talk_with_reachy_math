@@ -17,6 +17,8 @@ if str(SRC_PATH) not in sys.path:
 os.environ["REACHY_MINI_SKIP_DOTENV"] = "1"
 # Keep test runs from writing transcript files into the real home directory.
 os.environ["TALK_WITH_REACHY_LOGGING"] = "0"
+# Math practice adds guidance to the prompt; tests that need it turn it back on.
+os.environ["TALK_WITH_REACHY_MATH"] = "0"
 os.environ.pop("REACHY_MINI_CUSTOM_PROFILE", None)
 os.environ.pop("REACHY_MINI_EXTERNAL_PROFILES_DIRECTORY", None)
 os.environ.pop("REACHY_MINI_EXTERNAL_TOOLS_DIRECTORY", None)

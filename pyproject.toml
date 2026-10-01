@@ -74,6 +74,7 @@ where = ["src"]
 talk_with_reachy = [
   "static/**/*",
   ".env.example",
+  "math_data/*",
 ]
 talk_with_reachy_data = [
   "profiles/**/*.md",

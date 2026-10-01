@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from talk_with_reachy import voice_id
+from talk_with_reachy import voice_id, math_practice
 from talk_with_reachy.config import config, get_default_voice
 from talk_with_reachy.memory import format_memory_for_prompt
 from talk_with_reachy.profile_store import (
@@ -13,6 +13,7 @@ from talk_with_reachy.profile_store import (
     read_profile,
     read_packaged_default_profile,
 )
+from talk_with_reachy.profile_toolsets import read_profile_tool_names
 
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,28 @@ VOICE_ID_GUIDANCE = (
     "What you remember about one person belongs to that person only: never mention it to anyone else. "
     "The remember and forget tools act on the person speaking now. When someone tells you their name, save it."
 )
+
+# Added when the active profile has the math_practice tools.
+MATH_GUIDANCE = (
+    "You can run short spoken math practice for children aged about 10 to 13. Offer it when a system note "
+    'starting with "Math practice:" says it is a good moment, or when someone asks. Always ask first, and if '
+    "they say no, drop it. When they agree, call next_math_problem and read its 'say' text exactly. "
+    "Never solve a problem yourself and never say or hint at the answer before the child has tried. "
+    "When the child answers, call check_math_answer with exactly what they said, even if it is wrong or unclear, "
+    "and follow the instructions it returns: praise a right answer briefly, give the hint after a first wrong "
+    "answer, and explain the answer after a second one. Keep to about five problems unless they want more. "
+    "Call stop_math_practice when they want to stop."
+)
+
+
+def _math_tools_enabled(profile: str | None, instance_path: str | Path | None) -> bool:
+    if not math_practice.enabled():
+        return False
+    try:
+        return "math_practice" in read_profile_tool_names(profile, instance_path)
+    except Exception as exc:  # a broken toolset file must not stop the session from starting
+        logger.warning("Could not read the tools of profile %r: %s", profile, exc)
+        return False
 
 
 def _active_profile() -> ProfileDefinition:
@@ -58,6 +81,8 @@ def get_session_instructions(instance_path: str | Path | None = None) -> str:
     if not instructions:
         raise RuntimeError("Default profile has no usable instructions")
 
+    if _math_tools_enabled(selected_profile, instance_path):
+        instructions = f"{MATH_GUIDANCE}\n\n{instructions}"
     if voice_id.enabled():
         return f"{VOICE_ID_GUIDANCE}\n\n{instructions}"
     memory_prompt = format_memory_for_prompt(instance_path)

@@ -1,6 +1,6 @@
 # Talk with Reachy: study setup
 
-This repository is a fork of Pollen Robotics' [Reachy Mini conversation app](https://github.com/pollen-robotics/reachy_mini_conversation_app). It adds study data collection to the app and changes one conversational behavior:
+This repository is a fork of Pollen Robotics' [Reachy Mini conversation app](https://github.com/pollen-robotics/reachy_mini_conversation_app). It adds study data collection to the app, changes one conversational behavior, and adds math practice:
 
 1. **Timed transcripts.** Every finished utterance, by a person or by Reachy, is logged with its start time, end time, and duration. Each app run produces a JSONL file and a CSV copy of the same timeline.
 2. **Voice identification.** Each person utterance is matched against known voices and labeled with a speaker ID such as `P01` (a participant a researcher enrolled) or `V003` (a voice the app learned on its own).
@@ -8,6 +8,7 @@ This repository is a fork of Pollen Robotics' [Reachy Mini conversation app](htt
 4. **Event log.** Robot actions (dances, emotions, camera use), people talking over Reachy, connection and upload problems, and clock synchronization are logged on the same timeline.
 5. **Per-person memory.** Reachy is told who is speaking and keeps separate memories for each person. In the official app, one memory list is shared by everyone. This is the behavior change.
 6. **Google Drive upload.** The robot copies all of the above directly to a folder in Google Drive every five minutes. No computer needs to be nearby; the robot only needs internet access.
+7. **Math practice.** After about two minutes of conversation, Reachy offers short spoken math practice for children aged about 10 to 13. Problems are generated and checked in code, each child's level is kept per speaker ID, and every problem and answer is logged (see [Math practice](#math-practice)).
 
 UC's Office of Information Security declined the OneDrive integration on 2026-10-01. The OneDrive code is still in the repository but is switched off (`CLIENT_ID` in `onedrive_upload.py` is empty).
 
@@ -95,6 +96,7 @@ The CSV file has one row per record and opens directly in Excel. Its columns are
 | `mic_muted`, `mic_unmuted` | The microphone is muted or unmuted from the app's web page. |
 | `upload_signed_out`, `upload_failing`, `upload_recovered` | Upload problems start or end (`target` says where: `Google Drive`). A failure that continues is logged once, not on every pass. |
 | `clock_sync` | The robot's clock becomes synchronized (or stops being synchronized) with network time. |
+| `math_offer_prompted`, `math_problem`, `math_answer`, `math_level_change`, `math_problem_skipped`, `math_practice_stopped` | Math practice; see [Math practice](#math-practice) for the fields. |
 
 ### Clock
 
@@ -164,6 +166,63 @@ The `remember` and `forget` tools now act on the current speaker's own memory fi
 
 This changes the intervention compared with the official app: Reachy may greet people by name and bring up their earlier conversations, but it is instructed never to mention one person's memories to anyone else. Voice ID can be wrong, so this can still happen; the `speaker_note_sent` events show exactly what Reachy was told and when.
 
+## Math practice
+
+Reachy can run short spoken math practice for children aged about 10 to 13 (US grades 5 to 7). The conversation model only reads problems aloud and passes on what the child said. The problems, the answers, the checking, and the levels are all in code (`math_practice.py`), so Reachy never confirms a wrong answer as right.
+
+### How a practice session goes
+
+1. **Offer.** After two minutes of conversation (`TALK_WITH_REACHY_MATH_OFFER_AFTER_S`), at the end of the next thing a person says, the app adds a system note asking Reachy to offer a few math problems, by name if voice ID knows the child. Reachy asks first and drops it if the child says no. The note is repeated at most every ten minutes, and never while practice is under way.
+2. **Problem.** When the child agrees, Reachy calls `next_math_problem` and reads the problem it gets back.
+3. **Answer.** Reachy calls `check_math_answer` with the child's exact words. The code reads the last number in them: digits, number words ("seventy-two"), decimals ("two point five"), fractions ("three fourths", "3/4", "three over four"), mixed numbers ("two and a half"), and negatives ("negative five"). Equivalent forms count as right (4 sixths for 2 thirds). For an answer such as 1 third, a decimal rounded to two or more places (0.33) also counts.
+4. **Feedback.** A right answer is praised. After a first wrong answer, Reachy gives a hint and lets the child try once more. After a second wrong answer, Reachy gives the answer and a short explanation. If the child says no number at all ("I don't know"), Reachy asks again and may give the hint; this does not count as a try.
+5. **Stop.** Reachy calls `stop_math_practice` when the child wants to stop. Practice also counts as over after ten minutes without a problem or an answer.
+
+### Topics and levels
+
+Each topic has three levels. Without a request from the child, practice stays on one topic for five problems and then moves to the next one in this order:
+
+| Topic | Standards | Level 1 | Level 2 | Level 3 |
+|---|---|---|---|---|
+| Multiplication | 5.NBT.5 | 2-digit × 1-digit | 2-digit × 2-digit | 3-digit × 2-digit |
+| Division | 6.NS.2 | 2–3 digits ÷ 1 digit | 3 digits ÷ 2 digits | 3–4 digits ÷ 2 digits |
+| Fractions | 5.NF.1, 5.NF.4 | add, same denominator | add or subtract, different denominators | fraction of a number, or fraction × fraction |
+| Decimals | 5.NBT.7, 6.NS.3 | add or subtract tenths | add or subtract hundredths | multiply |
+| Percentages | 6.RP.3c | 10, 25, 50 percent of a number | 5, 20, 30, 40, 60, 75 percent | 12, 15, 35, 45, 65, 85 percent |
+| Negative numbers | 7.NS.1, 7.NS.2 | add | subtract a negative | multiply |
+| Order of operations | 5.OA.1 | a + b × c | (a + b) × c − d | a × b − c ÷ d |
+| Equations | 6.EE.7, 7.EE.4a | x + a = b or x − a = b | a·x = b | a·x + b = c |
+| Word problems | GSM8K | 2 steps | 3 steps | 4 steps |
+
+All answers are whole numbers except in the fractions and decimals topics. Word problems come from a bundled subset of 300 [GSM8K](https://github.com/openai/grade-school-math) training problems (MIT License; see `src/talk_with_reachy/math_data/GSM8K_LICENSE.txt`). The subset keeps problems of at most 35 words with a whole-number answer of at most 10,000 and drops topics that do not suit children, such as alcohol, gambling, weapons, and dieting. `deploy/make_word_problems.py` rebuilds it.
+
+Levels change by a fixed rule, separately for each topic and child:
+
+- **Up one level** after three problems in a row answered right on the first try.
+- **Down one level** after two problems in a row not solved after the second try.
+- A problem solved on the second try changes nothing and starts both counts again.
+
+Each child starts every topic at level 1. Their levels, counts, and current topic are saved in `people/<speaker ID>/math_progress.json` and uploaded with the rest of `people/`. Practice with a child whom voice ID cannot identify works the same way but is not saved.
+
+### Logged events
+
+| Event | Fields |
+|---|---|
+| `math_offer_prompted` | `speaker_id`: who was speaking when the offer note was sent. |
+| `math_problem` | `problem_id` (`M001`, `M002`, … per app run), `asked_to`, `skill`, `level`, `standards`, `text` (what Reachy was given to read), `answer`, `source` (`generated`, or the GSM8K line such as `gsm8k-train-123`). |
+| `math_answer` | `problem_id`, `answered_by` (speaker ID when the answer was checked; it can differ from `asked_to` when another child answers), `heard` (the words Reachy passed on), `parsed` (the number read from them, empty if none), `attempt` (1, 2, or empty when no number was heard), `correct`, `seconds_since_asked`, and on the last try `outcome` (`first_try`, `second_try`, or `missed`). |
+| `math_level_change` | `speaker_id`, `skill`, `old_level`, `new_level`. |
+| `math_problem_skipped` | A new problem was asked, or practice stopped, before the open one was answered. |
+| `math_practice_stopped` | `reason`, and `results`: problems and first-try answers per speaker ID in this practice session. |
+
+Limits to keep in mind:
+
+- `heard` is what the speech server transcribed, passed on by the model. A misheard number is checked as heard. The utterance records next to it hold the transcript and audio clip for checking by hand.
+- `seconds_since_asked` runs from the moment Reachy received the problem, so it includes the time Reachy took to read it aloud.
+- The model decides when to call the math tools. If it skips `check_math_answer` and answers by itself, no `math_answer` event appears for that problem.
+
+Set `TALK_WITH_REACHY_MATH=0` to turn math practice off. The tools are in the default profile only; other profiles do not offer math practice unless `math_practice` is added to their tools.
+
 ## Privacy notes for the IRB application
 
 - **Voiceprints are biometric identifiers.** HIPAA lists voice prints among the 18 identifiers that make health information identifiable. The voice library, the audio clips, and the transcripts linked to them are identifiable data.
@@ -171,6 +230,7 @@ This changes the intervention compared with the official app: Reachy may greet p
 - **Audio leaves the robot.** By default (`HF_REALTIME_CONNECTION_MODE=deployed`), microphone audio is sent to a speech service that Pollen Robotics hosts on Hugging Face; this happens in the upstream app too. Speaker names, IDs, and remembered facts are now sent to that service as well, inside the speaker notes. To keep audio on your own hardware, use `local` mode with your own [speech-to-speech](https://github.com/huggingface/speech-to-speech) server (see the upstream README).
 - **Voice identification itself stays on the robot.** Voiceprints are computed locally; they are uploaded only to the Google Drive account that signed in.
 - **The robot holds a Google sign-in.** It is limited to the `drive.file` scope, so it cannot see anything in that Drive except the files this app created. Those files are all the uploaded study data, though. If the robot is lost, remove the app's access at [myaccount.google.com/permissions](https://myaccount.google.com/permissions) (sign in with the account that the robot used).
+- **Math results are per child.** With voice ID on, each child's math levels and every answer they gave are stored under their speaker ID and uploaded with the other study data.
 - **Video is not recorded.** The camera is used only when Reachy calls its camera tool, and no image is saved.
 
 ## Setup, in order
@@ -281,6 +341,8 @@ All settings are optional environment variables. You can put them in the app's `
 | `TALK_WITH_REACHY_ONEDRIVE_CLIENT_ID` | empty | Turns on OneDrive upload instead, where an institution has approved the app registration. Google Drive takes precedence when both are set. |
 | `TALK_WITH_REACHY_ONEDRIVE_TENANT` | `TENANT` in `onedrive_upload.py` | Microsoft tenant for OneDrive. |
 | `TALK_WITH_REACHY_UPLOAD_INTERVAL_S` | `300` | Seconds between upload passes. |
+| `TALK_WITH_REACHY_MATH` | `1` | Set to `0` to turn math practice off. |
+| `TALK_WITH_REACHY_MATH_OFFER_AFTER_S` | `120` | Seconds of conversation before Reachy first offers math practice. |
 
 ## Where the changes are
 
@@ -298,6 +360,7 @@ All settings are optional environment variables. You can put them in the app's `
 | `src/talk_with_reachy/tools/background_tool_manager.py` | Logs `tool_started` and `tool_finished`. |
 | `src/talk_with_reachy/prompts.py`, `tools/remember.py`, `tools/forget.py` | Per-person memory when voice ID is on. |
 | `src/talk_with_reachy/console.py` | Logs microphone mute changes. |
+| `src/talk_with_reachy/math_practice.py`, `tools/math_practice.py`, `math_data/`, `deploy/make_word_problems.py` | New. Math problems, answer checking, levels, the three math tools, and the GSM8K subset. `profiles/default/profile.md` lists the tools, and `prompts.py` explains them to the model. |
 | `src/talk_with_reachy/main.py` | Starts and stops study logging around the conversation. |
 | `tests/test_study_*.py`, `tests/test_voice_id.py`, `tests/test_audio_timeline.py`, `tests/test_google_drive_upload.py`, `tests/test_onedrive_upload.py` | New tests. Google, Microsoft Graph, and the speaker model are replaced by fakes. |
 | Everything else | Package rename only (`reachy_mini_conversation_app` → `talk_with_reachy`). |
