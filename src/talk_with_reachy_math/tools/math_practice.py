@@ -38,12 +38,12 @@ class NextMathProblem(Tool):
 
 
 class CheckMathAnswer(Tool):
-    """Check the child's answer to the open problem."""
+    """Check the child's answer to the open problem or helper question."""
 
     name = "check_math_answer"
     description = (
-        "Check the child's answer to the current math problem. Pass exactly what the child said, "
-        "even if it is wrong, unclear, or not a number. Then follow the returned instructions."
+        "Check the child's answer to the current math problem or helper question. Pass exactly what the child "
+        "said, even if it is wrong, unclear, 'I don't know', or not a number. Then follow the returned instructions."
     )
     parameters_schema = {
         "type": "object",

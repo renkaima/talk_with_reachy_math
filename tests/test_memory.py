@@ -102,4 +102,4 @@ def test_prompt_includes_memory_fragment(tmp_path: Path, monkeypatch: pytest.Mon
 
     assert instructions.startswith("Things you remember about the user")
     assert "- Prefers concise answers" in instructions
-    assert "## IDENTITY" in instructions
+    assert "## WHO YOU ARE" in instructions

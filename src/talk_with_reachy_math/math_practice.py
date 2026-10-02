@@ -4,11 +4,16 @@ Problems are generated, or for word problems drawn from GSM8K, and checked here 
 code. The conversation model only reads a problem aloud and passes on what the child
 said, so the answer Reachy confirms is always computed, never guessed by the model.
 
+When a child's first answer is not right (or they say they don't know), Reachy does not
+give a hint in one long sentence. It asks the problem's helper steps instead: small
+questions such as "What is 70 times 9?", one at a time, each checked here too.
+
 Each child has a level from 1 to 3 per skill, kept in ``people/<speaker_id>/math_progress.json``
 and found through voice ID. Levels follow a fixed rule: three problems in a row answered
-correctly on the first try move the child up one level; two problems in a row not solved
-after the second try move them down one level. A problem solved on the second try leaves
-the level alone and resets both counts.
+correctly on the first try move the child up one level; two problems in a row in which
+Reachy had to give away an answer (of a helper step or of the problem) move them down one
+level. A problem solved with help, every helper step answered right, leaves the level alone
+and resets both counts.
 
 Every problem, answer, and level change is written to the study log as an event.
 """
@@ -37,17 +42,20 @@ logger = logging.getLogger(__name__)
 
 MATH_ENV = "TALK_WITH_REACHY_MATH_PRACTICE"
 OFFER_AFTER_ENV = "TALK_WITH_REACHY_MATH_OFFER_AFTER_S"
-DEFAULT_OFFER_AFTER_S = 120.0
-REOFFER_AFTER_S = 600.0
+DEFAULT_OFFER_AFTER_S = 180.0  # the greeting is the first invitation; this is the wait before the next
 PRACTICE_IDLE_S = 600.0  # practice counts as over after this long without a math tool call
 PROGRESS_FILENAME = "math_progress.json"
 WORD_PROBLEMS_PATH = Path(__file__).parent / "math_data" / "word_problems.jsonl"
 
 MIN_LEVEL, MAX_LEVEL = 1, 3
 LEVEL_UP_AFTER = 3  # first-try correct answers in a row
-LEVEL_DOWN_AFTER = 2  # problems not solved in a row
+LEVEL_DOWN_AFTER = 2  # problems in a row in which Reachy gave away an answer
 PROBLEMS_PER_SKILL = 5  # then the next problem without a topic moves on to the next skill
-MAX_ATTEMPTS = 2
+CLOSE_ENOUGH = Fraction(1, 10)  # a first answer this close (relative) is praised as a good estimate
+# Words that mean "I need help" when a child says no number; anything else is asked again.
+_ASKS_FOR_HELP = re.compile(
+    r"\b(don'?t know|dunno|no idea|not sure|help|hint|hard|stuck|give up|confus\w*)\b", re.IGNORECASE
+)
 
 
 def enabled() -> bool:
@@ -56,7 +64,7 @@ def enabled() -> bool:
 
 
 def offer_after_s() -> float:
-    """Seconds of conversation before Reachy first offers math practice."""
+    """Seconds after the last invitation to a math game (or the end of practice) before Reachy invites again."""
     try:
         return float(os.getenv(OFFER_AFTER_ENV) or DEFAULT_OFFER_AFTER_S)
     except ValueError:
@@ -83,6 +91,9 @@ _DENOMINATOR_WORDS = {
     16: ("sixteenth", "sixteenths"),
     20: ("twentieth", "twentieths"),
     24: ("twenty-fourth", "twenty-fourths"),
+    30: ("thirtieth", "thirtieths"),
+    40: ("fortieth", "fortieths"),
+    60: ("sixtieth", "sixtieths"),
     100: ("hundredth", "hundredths"),
 }
 
@@ -357,14 +368,32 @@ def answer_matches(heard: Fraction, answer: Fraction) -> bool:
 
 
 @dataclass(frozen=True)
+class Step:
+    """A small helper question Reachy asks when a child needs help; its answer is checked in code too."""
+
+    ask: str
+    answer: Fraction
+    also: Fraction | None = None  # another answer that means the same, such as "9 twelfths" for "9"
+
+    def matches(self, heard: Fraction) -> bool:
+        """Whether ``heard`` answers this helper question."""
+        return answer_matches(heard, self.answer) or heard == self.also
+
+    @property
+    def answer_text(self) -> str:
+        """How Reachy says the helper answer."""
+        return say_number(self.answer)
+
+
+@dataclass(frozen=True)
 class Problem:
-    """One problem, as Reachy should read it, with everything needed to check and explain it."""
+    """One problem, as Reachy should read it, with its helper steps and a child-friendly explanation."""
 
     skill: str
     level: int
     text: str
     answer: Fraction
-    hint: str
+    steps: tuple[Step, ...]
     explanation: str
     source: str = "generated"
 
@@ -384,21 +413,33 @@ def _multiply(level: int, rng: random.Random) -> Problem:
         else rng.choice([n for n in range(12, 100) if n % 10])
     )
     b = rng.randint(3, 9) if level == 1 else rng.choice([n for n in range(11, 100) if n % 10])
-    if level == 1:
-        hint = f"Split {a} into {a // 10 * 10} and {a % 10}, multiply each by {b}, then add."
+    if b < 10:  # break the bigger number into tens and ones
+        big, small = a // 10 * 10, a % 10
+        steps = (
+            Step(f"Let's break {a} into {big} and {small}. What is {big} times {b}?", Fraction(big * b)),
+            Step(f"Now, what is {small} times {b}?", Fraction(small * b)),
+            Step(f"Last step: what is {big * b} plus {small * b}?", Fraction(a * b)),
+        )
+        explanation = (
+            f"{a} is {big} plus {small}. {big} times {b} is {big * b}, and {small} times {b} is {small * b}. "
+            f"{big * b} plus {small * b} makes {a * b}."
+        )
     else:
-        hint = f"Multiply {a} by {b // 10 * 10} first, then {a} by {b % 10}, and add the two."
-    return Problem(
-        "multiply",
-        level,
-        f"What is {a} times {b}?",
-        Fraction(a * b),
-        hint,
-        f"{a} times {b // 10 * 10} is {a * (b // 10 * 10)}, and {a} times {b % 10} is {a * (b % 10)}. "
-        f"Together that makes {a * b}."
-        if b >= 10
-        else f"{a} times {b} is {a * b}.",
-    )
+        big, small = b // 10 * 10, b % 10
+        steps = (
+            Step(
+                f"Let's break {b} into {big} and {small}. Here's a tip: do {a} times {big // 10}, then put a zero "
+                f"on the end. What is {a} times {big}?",
+                Fraction(a * big),
+            ),
+            Step(f"Now, what is {a} times {small}?", Fraction(a * small)),
+            Step(f"Last step: what is {a * big} plus {a * small}?", Fraction(a * b)),
+        )
+        explanation = (
+            f"{b} is {big} plus {small}. {a} times {big} is {a * big}, and {a} times {small} is {a * small}. "
+            f"{a * big} plus {a * small} makes {a * b}."
+        )
+    return Problem("multiply", level, f"What is {a} times {b}?", Fraction(a * b), steps, explanation)
 
 
 def _divide(level: int, rng: random.Random) -> Problem:
@@ -409,18 +450,37 @@ def _divide(level: int, rng: random.Random) -> Problem:
     else:
         q, d = rng.randint(21, 99), rng.randint(12, 49)
     n = q * d
-    guess = max(10, round(q, -1))
-    return Problem(
-        "divide",
-        level,
-        f"What is {n} divided by {d}?",
-        Fraction(q),
-        f"Ask yourself: {d} times what makes {n}? Try {guess} first: {d} times {guess} is {d * guess}.",
-        f"{n} divided by {d} is {q}, because {d} times {q} is {n}.",
-    )
+    tens = q // 10 * 10
+    if q == tens:
+        steps: tuple[Step, ...] = (
+            Step(f"Let's use a times fact. {d} times what number makes {n // 10}?", Fraction(q // 10)),
+            Step(f"So {d} times {q // 10} tens makes {n}. How much is {q // 10} tens?", Fraction(q)),
+        )
+        explanation = f"{d} times {q} is {n}, so {n} divided by {d} is {q}."
+    else:
+        rest = n - d * tens
+        steps = (
+            Step(
+                f"Let's do it in two pieces. {d} times {tens} is {d * tens}. What is {n} minus {d * tens}?",
+                Fraction(rest),
+            ),
+            Step(f"Now, {d} times what number makes {rest}?", Fraction(q - tens)),
+            Step(f"Last step: what is {tens} plus {q - tens}?", Fraction(q)),
+        )
+        explanation = (
+            f"{d} times {tens} is {d * tens}, and {d} times {q - tens} is {rest}. "
+            f"Together, {d} times {q} makes {n}, so {n} divided by {d} is {q}."
+        )
+    return Problem("divide", level, f"What is {n} divided by {d}?", Fraction(q), steps, explanation)
 
 
 _NICE_DENOMINATORS = (2, 3, 4, 5, 6, 8, 10, 12)
+
+
+def _same_as(value: Fraction, said: str) -> str:
+    """', which is the same as 3 fourths' when the answer can be said more simply."""
+    simpler = say_fraction(value)
+    return "" if simpler == said else f", which is the same as {simpler}"
 
 
 def _fractions(level: int, rng: random.Random) -> Problem:
@@ -429,60 +489,94 @@ def _fractions(level: int, rng: random.Random) -> Problem:
         a = rng.randint(1, d - 2)
         b = rng.randint(1, d - 1 - a)
         x, y = Fraction(a, d), Fraction(b, d)
+        unit = _DENOMINATOR_WORDS[d][1]
+        total = _proper_fraction_words(a + b, d)
         return Problem(
             "fractions",
             level,
             f"What is {_proper_fraction_words(a, d)} plus {_proper_fraction_words(b, d)}?",
             x + y,
-            "The bottom numbers are the same, so add the top numbers and keep the bottom.",
-            f"{a} plus {b} is {a + b}, so the answer is {_proper_fraction_words(a + b, d)}"
-            + (f", which is the same as {say_fraction(x + y)}." if (x + y).denominator != d else "."),
+            (
+                Step(
+                    f"The bottom numbers are both {d}, so the answer is in {unit}. "
+                    f"We just add the top numbers. What is {a} plus {b}?",
+                    Fraction(a + b),
+                ),
+            ),
+            f"The bottom numbers are the same, so we add the top numbers: {a} plus {b} is {a + b}. "
+            f"That makes {total}{_same_as(x + y, total)}.",
         )
     if level == 2:
         d1, d2 = rng.sample(_NICE_DENOMINATORS, 2)
         x = Fraction(rng.randint(1, d1 - 1), d1)
         y = Fraction(rng.randint(1, d2 - 1), d2)
-        common = math.lcm(d1, d2)
         if rng.random() < 0.5 or x == y:
             op, value = "plus", x + y
         else:
             x, y = max(x, y), min(x, y)
             op, value = "minus", x - y
-        xs, ys = (_proper_fraction_words(f.numerator * common // f.denominator, common) for f in (x, y))
+        common = math.lcm(d1, d2)
+        unit = _DENOMINATOR_WORDS[common][1]
+        k1, k2 = (f.numerator * common // f.denominator for f in (x, y))
+        k = k1 + k2 if op == "plus" else k1 - k2
+        steps: list[Step] = []
+        for f, kf in ((x, k1), (y, k2)):
+            if f.denominator != common:
+                intro = "" if steps else f"Let's make the bottom numbers the same. {common} works for both. "
+                steps.append(Step(f"{intro}{say_fraction(f)} is how many {unit}?", Fraction(kf), also=f))
+        steps.append(Step(f"Now {op} the top numbers. What is {k1} {op} {k2}?", Fraction(k)))
+        total = _proper_fraction_words(k, common)
+        same_bottom = " and ".join(
+            f"{say_fraction(f)} is {_proper_fraction_words(kf, common)}"
+            for f, kf in ((x, k1), (y, k2))
+            if f.denominator != common
+        )
         return Problem(
             "fractions",
             level,
             f"What is {say_fraction(x)} {op} {say_fraction(y)}?",
             value,
-            f"Rewrite both fractions with the same bottom number. {common} works for both.",
-            f"{say_fraction(x)} is {xs} and {say_fraction(y)} is {ys}, so the answer is {say_fraction(value)}.",
+            tuple(steps),
+            f"With the same bottom number, {same_bottom}. {k1} {op} {k2} is {k}, so the answer is {total}"
+            f"{_same_as(value, total)}.",
         )
     if rng.random() < 0.5:
         d = rng.choice(_NICE_DENOMINATORS[1:])
         x = Fraction(rng.randint(1, d - 1), d)
         whole = d * rng.randint(2, 9)
         value = x * whole
+        one = _DENOMINATOR_WORDS[d][0]
+        steps = [Step(f"First find 1 {one} of {whole}. What is {whole} divided by {d}?", Fraction(whole // d))]
+        if x.numerator > 1:
+            steps.append(Step(f"We need {x.numerator} of those. What is {x.numerator} times {whole // d}?", value))
         return Problem(
             "fractions",
             level,
             f"What is {say_fraction(x)} of {whole}?",
             value,
-            f"First find 1 {_DENOMINATOR_WORDS[d][0]} of {whole} by dividing by {d}.",
-            f"{whole} divided by {d} is {whole // d}"
-            + (f", and {x.numerator} of those make {say_number(value)}." if x.numerator > 1 else "."),
+            tuple(steps),
+            f"1 {one} of {whole} is {whole} divided by {d}, which is {whole // d}."
+            + (f" {x.numerator} of those make {say_number(value)}." if x.numerator > 1 else ""),
         )
     d1, d2 = rng.sample(_NICE_DENOMINATORS, 2)
     x = Fraction(rng.randint(1, d1 - 1), d1)
     y = Fraction(rng.randint(1, d2 - 1), d2)
     value = x * y
+    top, bottom = x.numerator * y.numerator, x.denominator * y.denominator
+    total = _proper_fraction_words(top, bottom)
     return Problem(
         "fractions",
         level,
         f"What is {say_fraction(x)} times {say_fraction(y)}?",
         value,
-        "Multiply the top numbers together and the bottom numbers together.",
-        f"Top times top is {x.numerator * y.numerator}, bottom times bottom is {x.denominator * y.denominator}, "
-        f"so the answer is {say_fraction(value)}.",
+        (
+            Step(
+                f"To multiply fractions, multiply the top numbers. What is {x.numerator} times {y.numerator}?",
+                Fraction(top),
+            ),
+            Step(f"Now multiply the bottom numbers. What is {x.denominator} times {y.denominator}?", Fraction(bottom)),
+        ),
+        f"Top times top is {top}. Bottom times bottom is {bottom}. So the answer is {total}{_same_as(value, total)}.",
     )
 
 
@@ -496,14 +590,33 @@ def _decimals(level: int, rng: random.Random) -> Problem:
         else:
             x, y = tenths(11, 49), tenths(2, 9)
         value = x * y
+        whole_x, whole_y = x * 10, y if y.denominator == 1 else y * 10
+        product = whole_x * whole_y
+        places = 1 if y.denominator == 1 else 2
+        digits = (
+            "so the answer needs 1 digit after the point too"
+            if places == 1
+            else f"and {say_number(y)} has 1 too, so the answer needs 2 digits after the point"
+        )
         return Problem(
             "decimals",
             level,
             f"What is {say_number(x)} times {say_number(y)}?",
             value,
-            "Multiply as if there were no decimal points, then put back as many decimal places as the two "
-            "numbers have together.",
-            f"{say_number(x)} times {say_number(y)} is {say_number(value)}.",
+            (
+                Step(
+                    f"Let's forget the decimal points for a moment. What is {say_number(whole_x)} times "
+                    f"{say_number(whole_y)}?",
+                    product,
+                ),
+                Step(
+                    f"{say_number(x)} has 1 digit after the point, {digits}. "
+                    f"Put the point into {say_number(product)}: what number do you get?",
+                    value,
+                ),
+            ),
+            f"{say_number(whole_x)} times {say_number(whole_y)} is {say_number(product)}. The answer needs {places} "
+            f"digit{'s' if places > 1 else ''} after the point, so it is {say_number(value)}.",
         )
     x = tenths(11, 99) if level == 1 else Fraction(rng.randint(101, 999), 100)
     y = tenths(11, 99) if level == 1 else tenths(11, 59)
@@ -511,38 +624,91 @@ def _decimals(level: int, rng: random.Random) -> Problem:
     if op == "minus" and y > x:
         x, y = y, x
     value = x + y if op == "plus" else x - y
+    cx, cy, cents = x * 100, y * 100, value * 100
     return Problem(
         "decimals",
         level,
         f"What is {say_number(x)} {op} {say_number(y)}?",
         value,
-        "Line up the decimal points, and fill an empty place with a zero if it helps.",
-        f"{say_number(x)} {op} {say_number(y)} is {say_number(value)}.",
+        (
+            Step(
+                f"Let's think of it like money. {say_number(x)} dollars is {cx} cents, and {say_number(y)} dollars "
+                f"is {cy} cents. What is {cx} {op} {cy}?",
+                cents,
+            ),
+        ),
+        f"Think of it like money: {cx} cents {op} {cy} cents is {cents} cents. "
+        f"That is {say_number(value)} dollars, so the answer is {say_number(value)}.",
     )
 
 
-_PERCENT_HINTS = {
-    50: "50 percent is one half.",
-    25: "25 percent is one quarter: divide by 4.",
-    75: "75 percent is three quarters: find one quarter first, then take 3 of them.",
-}
+def _percent_steps(p: int, base: int) -> tuple[tuple[Step, ...], str]:
+    """Build the helper questions for p percent of base, starting from 50, 25, or 10 percent."""
+    value = Fraction(p * base, 100)
+    ten = Fraction(base, 10)
+    find_ten = Step(f"Let's start with 10 percent. That means divide by 10. What is {base} divided by 10?", ten)
+    v, t = say_number(value), say_number(ten)
+    if p == 50:
+        return (
+            Step(f"50 percent means half. What is half of {base}?", value),
+        ), f"50 percent means half: half of {base} is {v}."
+    if p == 25:
+        half = say_number(Fraction(base, 2))
+        return (
+            (Step(f"25 percent means one quarter. Half of {base} is {half}. What is half of that?", value),),
+            f"25 percent is one quarter. Half of {base} is {half}, and half of that is {v}.",
+        )
+    if p == 75:
+        quarter = say_number(Fraction(base, 4))
+        return (
+            (
+                Step(
+                    f"75 percent is three quarters. One quarter of {base} is {quarter}. What is 3 times {quarter}?",
+                    value,
+                ),
+            ),
+            f"75 percent is three quarters. One quarter of {base} is {quarter}, and 3 of those make {v}.",
+        )
+    if p == 10:
+        return (find_ten,), f"10 percent means divide by 10, and {base} divided by 10 is {v}."
+    if p == 5:
+        return (
+            (find_ten, Step(f"5 percent is half of 10 percent. What is half of {t}?", value)),
+            f"10 percent of {base} is {t}, and 5 percent is half of that, which is {v}.",
+        )
+    tens, rest = divmod(p, 10)
+    if rest == 0:
+        return (
+            (find_ten, Step(f"{p} percent is {tens} times as much. What is {tens} times {t}?", value)),
+            f"10 percent of {base} is {t}, and {p} percent is {tens} times that, which is {v}.",
+        )
+    steps = [find_ten]
+    tens_part = tens * ten
+    if tens > 1:
+        steps.append(Step(f"{tens * 10} percent is {tens} times that. What is {tens} times {t}?", tens_part))
+    if rest == 5:
+        rest_part = ten / 2
+        steps.append(Step(f"5 percent is half of 10 percent. What is half of {t}?", rest_part))
+    else:
+        one = ten / 10
+        rest_part = rest * one
+        steps.append(
+            Step(f"1 percent is {t} divided by 10, which is {say_number(one)}. What is {rest} times that?", rest_part)
+        )
+    steps.append(Step(f"Now add them up. What is {say_number(tens_part)} plus {say_number(rest_part)}?", value))
+    return (
+        tuple(steps),
+        f"{tens * 10} percent of {base} is {say_number(tens_part)}, and {rest} percent is {say_number(rest_part)}. "
+        f"Together, {p} percent is {v}.",
+    )
 
 
 def _percent(level: int, rng: random.Random) -> Problem:
     p = rng.choice({1: (10, 25, 50), 2: (5, 20, 30, 40, 60, 75)}.get(level, (12, 15, 35, 45, 65, 85)))
     step = 100 // math.gcd(p, 100)
     base = step * rng.randint(2, max(3, 400 // step))
-    value = Fraction(p * base, 100)
-    return Problem(
-        "percent",
-        level,
-        f"What is {p} percent of {base}?",
-        value,
-        _PERCENT_HINTS.get(
-            p, f"10 percent of {base} is {say_number(Fraction(base, 10))}. Build {p} percent from that."
-        ),
-        f"{p} percent means {p} out of every 100, so {p} percent of {base} is {say_number(value)}.",
-    )
+    steps, explanation = _percent_steps(p, base)
+    return Problem("percent", level, f"What is {p} percent of {base}?", Fraction(p * base, 100), steps, explanation)
 
 
 def _integers(level: int, rng: random.Random) -> Problem:
@@ -550,13 +716,26 @@ def _integers(level: int, rng: random.Random) -> Problem:
     if level == 1:
         b = rng.randint(2, 20) if a < 0 else -rng.randint(2, 20)
         value = a + b
+        way = "right" if b > 0 else "left"
+        walk = f"Picture a number line. Start at {_signed(a)} and move {abs(b)} steps to the {way}."
+        if value * a < 0 or value == 0:  # the walk reaches zero
+            steps: tuple[Step, ...] = (Step(f"{walk} How many steps does it take to reach zero?", Fraction(abs(a))),)
+            if value:
+                steps += (
+                    Step(
+                        f"You have {abs(b) - abs(a)} steps left to go past zero. Where do you land?", Fraction(value)
+                    ),
+                )
+        else:
+            steps = (Step(f"{walk} Where do you land?", Fraction(value)),)
         return Problem(
             "integers",
             level,
             f"What is {_signed(a)} plus {_signed(b)}?",
             Fraction(value),
-            f"Picture a number line. Start at {_signed(a)} and move {abs(b)} steps {'right' if b > 0 else 'left'}.",
-            f"Starting at {_signed(a)} and moving {abs(b)} {'right' if b > 0 else 'left'} lands on {_signed(value)}.",
+            steps,
+            f"Start at {_signed(a)} on the number line and move {abs(b)} steps to the {way}. "
+            f"You land on {_signed(value)}.",
         )
     if level == 2:
         b = -rng.randint(2, 20)
@@ -566,19 +745,29 @@ def _integers(level: int, rng: random.Random) -> Problem:
             level,
             f"What is {_signed(a)} minus {_signed(b)}?",
             Fraction(value),
-            "Subtracting a negative number is the same as adding the positive number.",
-            f"{_signed(a)} minus {_signed(b)} is {_signed(a)} plus {-b}, which is {_signed(value)}.",
+            (
+                Step(
+                    f"Here's a trick: taking away a negative is the same as adding. So {_signed(a)} minus "
+                    f"{_signed(b)} is the same as {_signed(a)} plus {-b}. What is {_signed(a)} plus {-b}?",
+                    Fraction(value),
+                ),
+            ),
+            f"Taking away a negative is the same as adding. So {_signed(a)} minus {_signed(b)} is "
+            f"{_signed(a)} plus {-b}, which is {_signed(value)}.",
         )
     a, b = rng.choice([-1, 1]) * rng.randint(2, 12), -rng.randint(2, 12)
     value = a * b
+    sign_rule = "Two negatives make a positive" if value > 0 else "One negative makes the answer negative"
     return Problem(
         "integers",
         level,
         f"What is {_signed(a)} times {_signed(b)}?",
         Fraction(value),
-        "Multiply the numbers first. Two negatives make a positive; one negative makes a negative.",
-        f"{abs(a)} times {abs(b)} is {abs(value)}, and the sign is {'positive' if value > 0 else 'negative'}, "
-        f"so the answer is {_signed(value)}.",
+        (
+            Step(f"First, forget the minus signs. What is {abs(a)} times {abs(b)}?", Fraction(abs(value))),
+            Step(f"{sign_rule}. So what is {_signed(a)} times {_signed(b)}?", Fraction(value)),
+        ),
+        f"{abs(a)} times {abs(b)} is {abs(value)}. {sign_rule}, so the answer is {_signed(value)}.",
     )
 
 
@@ -591,8 +780,11 @@ def _order_of_operations(level: int, rng: random.Random) -> Problem:
             level,
             f"What is {a} plus {b} times {c}?",
             Fraction(value),
-            "Multiply before you add.",
-            f"First {b} times {c} is {b * c}, then {a} plus {b * c} is {value}.",
+            (
+                Step(f"Times comes before plus. What is {b} times {c}?", Fraction(b * c)),
+                Step(f"Now add {a}. What is {a} plus {b * c}?", Fraction(value)),
+            ),
+            f"Times comes first: {b} times {c} is {b * c}. Then {a} plus {b * c} is {value}.",
         )
     if level == 2:
         d = rng.randint(1, (a + b) * c - 1)
@@ -602,8 +794,12 @@ def _order_of_operations(level: int, rng: random.Random) -> Problem:
             level,
             f"What is {a} plus {b}, in parentheses, times {c}, minus {d}?",
             Fraction(value),
-            "Work out the parentheses first, then multiply, then subtract.",
-            f"{a} plus {b} is {a + b}, times {c} is {(a + b) * c}, minus {d} is {value}.",
+            (
+                Step(f"Parentheses come first. What is {a} plus {b}?", Fraction(a + b)),
+                Step(f"Now times {c}. What is {a + b} times {c}?", Fraction((a + b) * c)),
+                Step(f"Last, take away {d}. What is {(a + b) * c} minus {d}?", Fraction(value)),
+            ),
+            f"Parentheses first: {a} plus {b} is {a + b}. Times {c} is {(a + b) * c}. Minus {d} is {value}.",
         )
     a = rng.randint(3, 12)
     b = rng.randint(3, 9)
@@ -615,9 +811,17 @@ def _order_of_operations(level: int, rng: random.Random) -> Problem:
         level,
         f"What is {a} times {b} minus {f} divided by {e}?",
         Fraction(value),
-        "Do the multiplication and the division first, then subtract.",
-        f"{a} times {b} is {a * b}, {f} divided by {e} is {f // e}, and {a * b} minus {f // e} is {_signed(value)}.",
+        (
+            Step(f"Times and divide come before minus. What is {a} times {b}?", Fraction(a * b)),
+            Step(f"And what is {f} divided by {e}?", Fraction(f // e)),
+            Step(f"Last step: what is {a * b} minus {f // e}?", Fraction(value)),
+        ),
+        f"Times and divide come first: {a} times {b} is {a * b}, and {f} divided by {e} is {f // e}. "
+        f"Then {a * b} minus {f // e} is {_signed(value)}.",
     )
+
+
+_MYSTERY = "Think of x as a mystery number."
 
 
 def _equations(level: int, rng: random.Random) -> Problem:
@@ -630,8 +834,14 @@ def _equations(level: int, rng: random.Random) -> Problem:
                 level,
                 f"If x plus {a} equals {x + a}, what is x?",
                 Fraction(x),
-                f"Take {a} away from both sides.",
-                f"{x + a} minus {a} is {x}, so x is {x}.",
+                (
+                    Step(
+                        f"{_MYSTERY} Something plus {a} makes {x + a}. To find it, take {a} away from {x + a}. "
+                        f"What is {x + a} minus {a}?",
+                        Fraction(x),
+                    ),
+                ),
+                f"Something plus {a} makes {x + a}, so x is {x + a} minus {a}, which is {x}.",
             )
         x += a
         return Problem(
@@ -639,8 +849,14 @@ def _equations(level: int, rng: random.Random) -> Problem:
             level,
             f"If x minus {a} equals {x - a}, what is x?",
             Fraction(x),
-            f"Add {a} to both sides.",
-            f"{x - a} plus {a} is {x}, so x is {x}.",
+            (
+                Step(
+                    f"{_MYSTERY} Something minus {a} leaves {x - a}. To find it, put the {a} back. "
+                    f"What is {x - a} plus {a}?",
+                    Fraction(x),
+                ),
+            ),
+            f"Something minus {a} leaves {x - a}, so x is {x - a} plus {a}, which is {x}.",
         )
     a = rng.randint(2, 12)
     if level == 2:
@@ -649,8 +865,8 @@ def _equations(level: int, rng: random.Random) -> Problem:
             level,
             f"If {a} times x equals {a * x}, what is x?",
             Fraction(x),
-            f"Divide both sides by {a}.",
-            f"{a * x} divided by {a} is {x}, so x is {x}.",
+            (Step(f"{_MYSTERY} {a} times something makes {a * x}. What is {a * x} divided by {a}?", Fraction(x)),),
+            f"{a} times something makes {a * x}, so x is {a * x} divided by {a}, which is {x}.",
         )
     b = rng.randint(1, 20)
     return Problem(
@@ -658,19 +874,31 @@ def _equations(level: int, rng: random.Random) -> Problem:
         level,
         f"If {a} times x plus {b} equals {a * x + b}, what is x?",
         Fraction(x),
-        f"First take {b} away from both sides, then divide by {a}.",
-        f"{a * x + b} minus {b} is {a * x}, and {a * x} divided by {a} is {x}, so x is {x}.",
+        (
+            Step(f"{_MYSTERY} First, undo the plus {b}. What is {a * x + b} minus {b}?", Fraction(a * x)),
+            Step(f"So {a} times x makes {a * x}. What is {a * x} divided by {a}?", Fraction(x)),
+        ),
+        f"First take away {b}: {a * x + b} minus {b} is {a * x}. Then {a} times x makes {a * x}, "
+        f"so x is {a * x} divided by {a}, which is {x}.",
     )
 
 
-_SPOKEN_OPERATORS = {"*": "times", "/": "divided by", "+": "plus", "-": "minus", "=": "equals"}
+_SPOKEN_OPERATORS = {
+    "*": "times",
+    "x": "times",
+    "×": "times",
+    "/": "divided by",
+    "+": "plus",
+    "-": "minus",
+    "=": "equals",
+}
 # An operator between two numbers (or parentheses), so "half-price" and "km/h" are left alone.
-_OPERATOR_BETWEEN_NUMBERS = re.compile(r"(?<=[\d)%])\s*([*/+=-])\s*(?=[\d(.$])")
+_OPERATOR_BETWEEN_NUMBERS = re.compile(r"(?<=[\d)%])\s*([*/+=-]|\s[x×]\s)\s*(?=[\d(.$])")
 
 
 def _say_expression(text: str) -> str:
-    """Math written as ``48/2 = 24`` turned into words a text-to-speech voice reads well."""
-    spoken = _OPERATOR_BETWEEN_NUMBERS.sub(lambda m: f" {_SPOKEN_OPERATORS[m.group(1)]} ", text)
+    """Math written as ``48/2 = 24`` or ``0.2 x 50`` turned into words a text-to-speech voice reads well."""
+    spoken = _OPERATOR_BETWEEN_NUMBERS.sub(lambda m: f" {_SPOKEN_OPERATORS[m.group(1).strip()]} ", text)
     return " ".join(spoken.replace("(", " ").replace(")", " ").split())
 
 
@@ -691,12 +919,13 @@ def word_problems() -> list[dict[str, Any]]:
 def _word_problem(level: int, rng: random.Random) -> Problem:
     pool = [row for row in word_problems() if row["level"] == level]
     row = rng.choice(pool)
+    steps = tuple(Step(_say_expression(s["ask"]), Fraction(Decimal(s["answer"]))) for s in row["steps"])
     return Problem(
         "word_problems",
         level,
         row["question"],
         Fraction(row["answer"]),
-        f"Take it one step at a time. Start with {_say_expression(row['first_step'])}.",
+        steps,
         _say_expression(row["solution"]) if len(row["solution"]) < 300 else f"The answer is {row['answer']}.",
         source=row["id"],
     )
@@ -782,8 +1011,8 @@ class Learner:
 def record_result(progress: SkillProgress, outcome: str) -> int:
     """Apply the level rule to one finished problem; return the level change (-1, 0, or 1).
 
-    ``outcome`` is ``first_try`` (right on the first try), ``second_try`` (right on the
-    second try), or ``missed`` (not solved).
+    ``outcome`` is ``first_try`` (right on the first try), ``with_help`` (solved through the
+    helper steps, every one answered right), or ``missed`` (Reachy had to give away an answer).
     """
     progress.problems += 1
     if outcome == "first_try":
@@ -821,6 +1050,8 @@ class OpenProblem:
     asked_to: str
     asked_mono: float
     attempts: int = 0
+    step: int | None = None  # index of the helper step being asked; None while on the problem itself
+    gave_away: bool = False  # Reachy told the child a helper answer
 
 
 class MathCoach:
@@ -834,7 +1065,6 @@ class MathCoach:
         self._open: OpenProblem | None = None
         self._count = 0
         self._last_activity_mono: float | None = None
-        self._connected_mono: float | None = None
         self._last_offer_mono: float | None = None
         self._session_results: dict[str, list[str]] = {}
 
@@ -923,7 +1153,7 @@ class MathCoach:
         }
 
     def check_answer(self, child_answer: str) -> dict[str, Any]:
-        """Check what the child said against the open problem and update their progress."""
+        """Check what the child said against the open problem or helper step, and say what Reachy does next."""
         with self._lock:
             open_problem = self._open
             if open_problem is None:
@@ -939,35 +1169,95 @@ class MathCoach:
                 "asked_to": open_problem.asked_to,
                 "heard": child_answer,
                 "parsed": None if heard is None else say_number(heard),
+                "step": None if open_problem.step is None else open_problem.step + 1,
                 "seconds_since_asked": round(now - open_problem.asked_mono, 1),
             }
-            if heard is None:
+            if heard is None and not _ASKS_FOR_HELP.search(child_answer):
                 study_log.record_event("math_answer", now, **fields, attempt=None, correct=None)
                 return {
                     "heard_a_number": False,
-                    "instructions": "You did not hear a number. Ask them to say their answer as a number. "
-                    f"If they are stuck, give this hint: {problem.hint}",
+                    "instructions": "You did not hear a number. Kindly ask them to say their answer as a number, "
+                    "or to say 'help' if they are stuck.",
                 }
             open_problem.attempts += 1
-            correct = answer_matches(heard, problem.answer)
-            fields.update(attempt=open_problem.attempts, correct=correct)
-            if not correct and open_problem.attempts < MAX_ATTEMPTS:
-                study_log.record_event("math_answer", now, **fields)
+            fields["attempt"] = open_problem.attempts
+            if heard is not None and answer_matches(heard, problem.answer):
+                outcome = (
+                    "first_try" if open_problem.step is None else "missed" if open_problem.gave_away else "with_help"
+                )
+                return self._finish(open_problem, speaker_id, outcome, True, now, fields)
+            if open_problem.step is None:
+                close = (
+                    heard is not None
+                    and problem.answer != 0
+                    and abs(heard - problem.answer) <= abs(problem.answer) * CLOSE_ENOUGH
+                )
+                fields["close"] = close
+                if not problem.steps:
+                    return self._finish(open_problem, speaker_id, "missed", False, now, fields)
+                study_log.record_event("math_answer", now, **fields, correct=False)
+                open_problem.step = 0
+                if close:
+                    opener = "Their answer is really close: tell them it was a great estimate."
+                elif heard is None:
+                    opener = "Tell them that's okay, it's a tricky one."
+                else:
+                    opener = "Say 'Not quite yet' or 'Good try' warmly; never say 'wrong'."
                 return {
                     "correct": False,
-                    "hint": problem.hint,
-                    "instructions": "Say kindly that it is not quite right, give the hint in your own words, "
-                    "and let them try once more. Do not say the answer.",
+                    "close": close,
+                    "helper_question": problem.steps[0].ask,
+                    "instructions": f"{opener} Do not say the answer. Say you will work it out together in small "
+                    "steps, then ask the helper question in simple words, keeping its numbers. Wait for their answer "
+                    "and pass it to check_math_answer.",
                 }
-            outcome = "missed" if not correct else "first_try" if open_problem.attempts == 1 else "second_try"
-            learner = self._learner(speaker_id)
-            progress = learner.skill(problem.skill)
-            old_level = progress.level
-            change = record_result(progress, outcome)
-            self._save(learner)
-            self._open = None
-            self._session_results.setdefault(speaker_id, []).append(outcome)
-        study_log.record_event("math_answer", now, **fields, outcome=outcome)
+            step = problem.steps[open_problem.step]
+            step_right = heard is not None and step.matches(heard)
+            open_problem.gave_away = open_problem.gave_away or not step_right
+            next_index = open_problem.step + 1
+            if next_index >= len(problem.steps):
+                outcome = "missed" if open_problem.gave_away else "with_help"
+                return self._finish(open_problem, speaker_id, outcome, step_right, now, fields)
+            study_log.record_event("math_answer", now, **fields, correct=step_right)
+            open_problem.step = next_index
+            follow = (
+                "Then ask the next helper question in simple words, keeping its numbers, and pass the answer "
+                "to check_math_answer."
+            )
+            if step_right:
+                return {
+                    "correct": True,
+                    "helper_question": problem.steps[next_index].ask,
+                    "instructions": f"Say 'Yes!' or 'Nice!' in a few words. {follow}",
+                }
+            example = "That's okay!" if heard is None else "Almost!"
+            return {
+                "correct": False,
+                "helper_answer": step.answer_text,
+                "helper_question": problem.steps[next_index].ask,
+                "instructions": f"Kindly tell them this step's answer, for example '{example} It's {step.answer_text}.' "
+                f"{follow}",
+            }
+
+    def _finish(
+        self,
+        open_problem: OpenProblem,
+        speaker_id: str,
+        outcome: str,
+        correct: bool,
+        now: float,
+        fields: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Close the problem, update the child's level, and tell Reachy how to wrap up. Caller holds the lock."""
+        problem = open_problem.problem
+        learner = self._learner(speaker_id)
+        progress = learner.skill(problem.skill)
+        old_level = progress.level
+        change = record_result(progress, outcome)
+        self._save(learner)
+        self._open = None
+        self._session_results.setdefault(speaker_id, []).append(outcome)
+        study_log.record_event("math_answer", now, **fields, correct=correct, outcome=outcome)
         if change:
             study_log.record_event(
                 "math_level_change",
@@ -978,16 +1268,23 @@ class MathCoach:
                 new_level=progress.level,
             )
         result: dict[str, Any] = {"correct": correct, "answer": problem.answer_text}
-        if correct:
+        if outcome == "first_try":
             result["instructions"] = (
                 "Praise them briefly and specifically; you may play a happy emotion. "
-                "Then ask if they want another problem."
+                "Then ask if they want another one."
+            )
+        elif correct:
+            result["explanation"] = problem.explanation
+            result["instructions"] = (
+                f"Cheer: they worked it out step by step! Say the whole answer, {problem.answer_text}, "
+                "in one short sentence. Then ask if they want another one."
             )
         else:
             result["explanation"] = problem.explanation
             result["instructions"] = (
-                "Kindly tell them the answer and explain it in one or two short sentences using the explanation. "
-                "Then ask if they want to try another one."
+                f"Kindly tell them the answer is {problem.answer_text}, then explain it with the explanation in two "
+                "or three short, simple sentences. Praise their effort; tricky ones help their brain grow. "
+                "Then ask if they want another one."
             )
         if change > 0:
             result["level_change"] = f"They move up to level {progress.level} in {SKILLS[problem.skill].title}."
@@ -1004,6 +1301,7 @@ class MathCoach:
                 )
             self._open = None
             self._last_activity_mono = None
+            self._last_offer_mono = time.monotonic()  # wait a full interval before inviting again
             summary = {
                 speaker: {"problems": len(results), "first_try_correct": results.count("first_try")}
                 for speaker, results in self._session_results.items()
@@ -1021,18 +1319,16 @@ class MathCoach:
         return last is not None and now - last < PRACTICE_IDLE_S
 
     def connection_opened(self, now: float | None = None) -> None:
-        """Start timing the conversation for the first offer."""
-        self._connected_mono = time.monotonic() if now is None else now
+        """Start the offer clock: the greeting at the start already invites the child to a math game."""
+        self._last_offer_mono = time.monotonic() if now is None else now
 
     def offer_note_if_due(self, now: float | None = None) -> str | None:
         """Return a system note asking Reachy to offer practice if it is time, else None."""
         now = time.monotonic() if now is None else now
         with self._lock:
-            if not enabled() or self._connected_mono is None or self.practice_active(now):
+            if not enabled() or self._last_offer_mono is None or self.practice_active(now):
                 return None
-            if now - self._connected_mono < offer_after_s():
-                return None
-            if self._last_offer_mono is not None and now - self._last_offer_mono < REOFFER_AFTER_S:
+            if now - self._last_offer_mono < offer_after_s():
                 return None
             self._last_offer_mono = now
         speaker_id = self._speaker()
@@ -1041,8 +1337,8 @@ class MathCoach:
         study_log.record_event("math_offer_prompted", now, speaker_id=speaker_id)
         who = name or "the person you are talking with"
         return (
-            f"Math practice: when there is a natural pause, offer {who} a few quick math problems. "
-            "Ask first. If they say no, let it go and keep chatting. If they say yes, call next_math_problem."
+            f"Math practice: when there is a natural pause, ask {who} if they want to play a quick math game. "
+            "If they say no, let it go and keep chatting. If they say yes, call next_math_problem."
         )
 
 

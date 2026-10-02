@@ -171,13 +171,13 @@ def test_session_greeting_prompt_loads_from_selected_profile(
     assert prompts_mod.get_session_greeting_prompt() == "Greet me like a tiny stage host."
 
 
-def test_session_greeting_prompt_uses_builtin_default_without_profile(
+def test_session_greeting_prompt_uses_the_default_profile_greeting_without_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The no-profile greeting should come from the built-in constant only."""
+    """With no profile chosen, the greeting comes from the bundled default profile (an invitation to a math game)."""
     monkeypatch.setattr(config, "REACHY_MINI_CUSTOM_PROFILE", None)
 
-    assert prompts_mod.get_session_greeting_prompt() == prompts_mod.DEFAULT_GREETING_PROMPT
+    assert prompts_mod.get_session_greeting_prompt() == profile_store_mod.read_packaged_default_profile().greeting
 
 
 def test_headless_profile_write_can_store_greeting(

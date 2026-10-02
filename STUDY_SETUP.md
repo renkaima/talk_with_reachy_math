@@ -172,12 +172,14 @@ This changes the intervention compared with the official app: Reachy may greet p
 
 Reachy can run short spoken math practice for children aged about 10 to 13 (US grades 5 to 7). The conversation model only reads problems aloud and passes on what the child said. The problems, the answers, the checking, and the levels are all in code (`math_practice.py`), so Reachy never confirms a wrong answer as right.
 
+The default profile (`profiles/default/profile.md`) makes Reachy a friendly robot coach that talks the way one would talk to a 10-year-old: one or two short sentences, everyday words, one small step at a time, and praise for effort. It never says "wrong" ("Not quite yet" instead), and it is told not to ask children for personal details such as a full name, address, or phone number.
+
 ### How a practice session goes
 
-1. **Offer.** After two minutes of conversation (`TALK_WITH_REACHY_MATH_OFFER_AFTER_S`), at the end of the next thing a person says, the app adds a system note asking Reachy to offer a few math problems, by name if voice ID knows the child. Reachy asks first and drops it if the child says no. The note is repeated at most every ten minutes, and never while practice is under way.
+1. **Invitation.** Reachy opens the conversation by saying hi and asking whether the child wants to play a quick math game (the `greeting` in the default profile). If the child says no or talks about something else, the app later adds a system note, at the end of the next thing a person says, asking Reachy to invite the child again, by name if voice ID knows the child. The note comes at the earliest three minutes (`TALK_WITH_REACHY_MATH_OFFER_AFTER_S`) after the greeting, the previous note, or the end of practice, and never while practice is under way. Reachy drops the game if the child says no.
 2. **Problem.** When the child agrees, Reachy calls `next_math_problem` and reads the problem it gets back.
-3. **Answer.** Reachy calls `check_math_answer` with the child's exact words. The code reads the last number in them: digits, number words ("seventy-two"), decimals ("two point five"), fractions ("three fourths", "3/4", "three over four"), mixed numbers ("two and a half"), and negatives ("negative five"). Equivalent forms count as right (4 sixths for 2 thirds). For an answer such as 1 third, a decimal rounded to two or more places (0.33) also counts.
-4. **Feedback.** A right answer is praised. After a first wrong answer, Reachy gives a hint and lets the child try once more. After a second wrong answer, Reachy gives the answer and a short explanation. If the child says no number at all ("I don't know"), Reachy asks again and may give the hint; this does not count as a try.
+3. **Answer.** Reachy calls `check_math_answer` with the child's exact words, both for answers to the problem and for answers to the helper questions below. The code reads the last number in them: digits, number words ("seventy-two"), decimals ("two point five"), fractions ("three fourths", "3/4", "three over four"), mixed numbers ("two and a half"), and negatives ("negative five"). Equivalent forms count as right (4 sixths for 2 thirds). For an answer such as 1 third, a decimal rounded to two or more places (0.33) also counts.
+4. **Help in small steps.** A right first answer is praised. If the first answer is not right, or the child says they don't know or are stuck ("I don't know", "help", "it's too hard"), Reachy gives neither the answer nor a long hint. It says "Not quite yet" (or, when the answer is within 10 percent, that it was a great estimate) and asks the problem's first helper question, a smaller piece of the problem such as "Let's break 75 into 70 and 5. What is 70 times 9?". The code checks each helper answer too. A right one gets a short "Yes!" and the next helper question; a wrong one gets that helper's answer ("Almost! It's 630.") and the next helper question. If the child says the problem's answer at any point, the problem is solved. After the last helper question, Reachy says the whole answer; if the child's answer to that last question was not right either, Reachy also explains the answer in short sentences. If the child says something with no number and no request for help (for example, "um"), Reachy asks for the answer as a number; this does not count as a try.
 5. **Stop.** Reachy calls `stop_math_practice` when the child wants to stop. Practice also counts as over after ten minutes without a problem or an answer.
 
 ### Topics and levels
@@ -196,13 +198,15 @@ Each topic has three levels. Without a request from the child, practice stays on
 | Equations | 6.EE.7, 7.EE.4a | x + a = b or x − a = b | a·x = b | a·x + b = c |
 | Word problems | GSM8K | 2 steps | 3 steps | 4 steps |
 
-All answers are whole numbers except in the fractions and decimals topics. Word problems come from a bundled subset of 300 [GSM8K](https://github.com/openai/grade-school-math) training problems (MIT License; see `src/talk_with_reachy_math/math_data/GSM8K_LICENSE.txt`). The subset keeps problems of at most 35 words with a whole-number answer of at most 10,000 and drops topics that do not suit children, such as alcohol, gambling, weapons, and dieting. `deploy/make_word_problems.py` rebuilds it.
+Helper questions follow one idea per topic: multiplication breaks a number into tens and ones; division first takes away a round number of groups ("4 times 80 is 320. What is 348 minus 320?"); fractions make the bottom numbers the same; decimals are thought of as money in cents; percentages start from 50, 25, or 10 percent; negative numbers use a number line, "taking away a negative is the same as adding", and the sign rule; order of operations does one operation at a time; equations treat x as a mystery number and undo one step at a time; and word problems take one calculation of the GSM8K solution at a time, with the sentence that explains it.
+
+All answers are whole numbers except in the fractions and decimals topics. Word problems come from a bundled subset of 300 [GSM8K](https://github.com/openai/grade-school-math) training problems (MIT License; see `src/talk_with_reachy_math/math_data/GSM8K_LICENSE.txt`). The subset keeps problems of at most 35 words with a whole-number answer of at most 10,000 and drops topics that do not suit children, such as alcohol, gambling, weapons, and dieting. `deploy/make_word_problems.py` rebuilds it and turns each calculation of a GSM8K solution into a helper question.
 
 Levels change by a fixed rule, separately for each topic and child:
 
 - **Up one level** after three problems in a row answered right on the first try.
-- **Down one level** after two problems in a row not solved after the second try.
-- A problem solved on the second try changes nothing and starts both counts again.
+- **Down one level** after two problems in a row in which Reachy had to give away an answer, either to a helper question or to the problem.
+- A problem solved with help, with every helper question answered right, changes nothing and starts both counts again.
 
 Each child starts every topic at level 1. Their levels, counts, and current topic are saved in `people/<speaker ID>/math_progress.json` and uploaded with the rest of `people/`. Practice with a child whom voice ID cannot identify works the same way but is not saved.
 
@@ -212,7 +216,7 @@ Each child starts every topic at level 1. Their levels, counts, and current topi
 |---|---|
 | `math_offer_prompted` | `speaker_id`: who was speaking when the offer note was sent. |
 | `math_problem` | `problem_id` (`M001`, `M002`, … per app run), `asked_to`, `skill`, `level`, `standards`, `text` (what Reachy was given to read), `answer`, `source` (`generated`, or the GSM8K line such as `gsm8k-train-123`). |
-| `math_answer` | `problem_id`, `answered_by` (speaker ID when the answer was checked; it can differ from `asked_to` when another child answers), `heard` (the words Reachy passed on), `parsed` (the number read from them, empty if none), `attempt` (1, 2, or empty when no number was heard), `correct`, `seconds_since_asked`, and on the last try `outcome` (`first_try`, `second_try`, or `missed`). |
+| `math_answer` | `problem_id`, `answered_by` (speaker ID when the answer was checked; it can differ from `asked_to` when another child answers), `heard` (the words Reachy passed on), `parsed` (the number read from them, empty if none), `step` (empty for an answer to the problem itself; 1, 2, … for an answer to that helper question), `attempt` (1, 2, … counting each checked answer to this problem; empty when no number was heard and no help was asked for), `correct` (whether this answer was right for the problem or for the helper question), `close` (first answer only: within 10 percent of the right answer), `seconds_since_asked`, and on the last answer `outcome` (`first_try`, `with_help`, or `missed`, as defined in the level rule above). |
 | `math_level_change` | `speaker_id`, `skill`, `old_level`, `new_level`. |
 | `math_problem_skipped` | A new problem was asked, or practice stopped, before the open one was answered. |
 | `math_practice_stopped` | `reason`, and `results`: problems and first-try answers per speaker ID in this practice session. |
@@ -222,6 +226,7 @@ Limits to keep in mind:
 - `heard` is what the speech server transcribed, passed on by the model. A misheard number is checked as heard. The utterance records next to it hold the transcript and audio clip for checking by hand.
 - `seconds_since_asked` runs from the moment Reachy received the problem, so it includes the time Reachy took to read it aloud.
 - The model decides when to call the math tools. If it skips `check_math_answer` and answers by itself, no `math_answer` event appears for that problem.
+- The model may reword a helper question when it asks it. The `step` field records which helper question the code checked each answer against; the utterance records hold what Reachy actually said.
 
 Set `TALK_WITH_REACHY_MATH_PRACTICE=0` to turn math practice off. The tools are in the default profile only; other profiles do not offer math practice unless `math_practice` is added to their tools.
 
@@ -333,7 +338,7 @@ All settings are optional environment variables. You can put them in the app's `
 | `TALK_WITH_REACHY_MATH_ONEDRIVE_TENANT` | `TENANT` in `onedrive_upload.py` | Microsoft tenant for OneDrive. |
 | `TALK_WITH_REACHY_MATH_UPLOAD_INTERVAL_S` | `300` | Seconds between upload passes. |
 | `TALK_WITH_REACHY_MATH_PRACTICE` | `1` | Set to `0` to turn math practice off. |
-| `TALK_WITH_REACHY_MATH_OFFER_AFTER_S` | `120` | Seconds of conversation before Reachy first offers math practice. |
+| `TALK_WITH_REACHY_MATH_OFFER_AFTER_S` | `180` | Seconds after the greeting, the previous invitation, or the end of practice before Reachy invites the child to a math game again. |
 
 ## Where the changes are
 
@@ -351,7 +356,8 @@ All settings are optional environment variables. You can put them in the app's `
 | `src/talk_with_reachy_math/tools/background_tool_manager.py` | Logs `tool_started` and `tool_finished`. |
 | `src/talk_with_reachy_math/prompts.py`, `tools/remember.py`, `tools/forget.py` | Per-person memory when voice ID is on. |
 | `src/talk_with_reachy_math/console.py` | Logs microphone mute changes. |
-| `src/talk_with_reachy_math/math_practice.py`, `tools/math_practice.py`, `math_data/`, `deploy/make_word_problems.py` | New. Math problems, answer checking, levels, the three math tools, and the GSM8K subset. `profiles/default/profile.md` lists the tools, and `prompts.py` explains them to the model. |
+| `src/talk_with_reachy_math/math_practice.py`, `tools/math_practice.py`, `math_data/`, `deploy/make_word_problems.py` | New. Math problems, answer checking, levels, the three math tools, and the GSM8K subset. `prompts.py` explains them to the model. |
+| `profiles/default/profile.md` | Rewritten for children aged 10 to 13: a friendly robot coach with short sentences and everyday words, the math tools, and a greeting that invites the child to a math game. |
 | `src/talk_with_reachy_math/main.py` | Starts and stops study logging around the conversation. |
 | `tests/test_study_*.py`, `tests/test_voice_id.py`, `tests/test_audio_timeline.py`, `tests/test_google_drive_upload.py`, `tests/test_onedrive_upload.py` | New tests. Google, Microsoft Graph, and the speaker model are replaced by fakes. |
 | Everything else | Package rename only (`reachy_mini_conversation_app` → `talk_with_reachy_math`). |
