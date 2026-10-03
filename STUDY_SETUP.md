@@ -8,7 +8,7 @@ This app is [Talk with Reachy](https://github.com/renkaima/talk_with_reachy) plu
 4. **Event log.** Robot actions (dances, emotions, camera use), people talking over Reachy, connection and upload problems, and clock synchronization are logged on the same timeline.
 5. **Per-person memory.** Reachy is told who is speaking and keeps separate memories for each person. In the official app, one memory list is shared by everyone. This is the behavior change.
 6. **Google Drive upload.** The robot copies all of the above directly to a folder in Google Drive every five minutes. No computer needs to be nearby; the robot only needs internet access.
-7. **Math practice.** After about two minutes of conversation, Reachy offers short spoken math practice for children aged about 10 to 13. Problems are generated and checked in code, each child's level is kept per speaker ID, and every problem and answer is logged (see [Math practice](#math-practice)).
+7. **Math practice.** Reachy opens the conversation by inviting the child to a quick math game, for children aged about 10 to 13, and invites again later if the child said no. Problems are generated and checked in code, a child who needs help gets small helper questions one at a time, each child's level is kept per speaker ID, and every problem and answer is logged (see [Math practice](#math-practice)).
 
 UC's Office of Information Security declined the OneDrive integration on 2026-10-01. The OneDrive code is still in the repository but is switched off (`CLIENT_ID` in `onedrive_upload.py` is empty).
 
@@ -234,7 +234,7 @@ Set `TALK_WITH_REACHY_MATH_PRACTICE=0` to turn math practice off. The tools are 
 
 - **Voiceprints are biometric identifiers.** HIPAA lists voice prints among the 18 identifiers that make health information identifiable. The voice library, the audio clips, and the transcripts linked to them are identifiable data.
 - **Everyone near the robot is recorded,** not only consented participants. With automatic voices, the app also stores a voiceprint for anyone who speaks for two seconds or more. If the IRB requires that only enrolled participants be fingerprinted, this behavior has to be changed before data collection; it is not a setting today.
-- **Audio leaves the robot.** By default (`HF_REALTIME_CONNECTION_MODE=deployed`), microphone audio is sent to a speech service that Pollen Robotics hosts on Hugging Face; this happens in the upstream app too. Speaker names, IDs, and remembered facts are now sent to that service as well, inside the speaker notes. To keep audio on your own hardware, use `local` mode with your own [speech-to-speech](https://github.com/huggingface/speech-to-speech) server (see the upstream README).
+- **Audio leaves the robot.** By default (`HF_REALTIME_CONNECTION_MODE=deployed`), microphone audio is sent to a speech service that Pollen Robotics hosts on Hugging Face; this happens in the upstream app too. Speaker names, IDs, and remembered facts are now sent to that service as well, inside the speaker notes. To keep audio on your own hardware, use `local` mode with your own [speech-to-speech](https://github.com/huggingface/speech-to-speech) server (see [Hugging Face connection modes](docs/ORIGINAL_README.md#hugging-face-connection-modes)).
 - **Voice identification itself stays on the robot.** Voiceprints are computed locally; they are uploaded only to the Google Drive account that signed in.
 - **The robot holds a Google sign-in.** It is limited to the `drive.file` scope, so it cannot see anything in that Drive except the files this app created. Those files are all the uploaded study data, though. If the robot is lost, remove the app's access at [myaccount.google.com/permissions](https://myaccount.google.com/permissions) (sign in with the account that the robot used).
 - **Math results are per child.** With voice ID on, each child's math levels and every answer they gave are stored under their speaker ID and uploaded with the other study data.
@@ -272,7 +272,7 @@ git remote add space https://huggingface.co/spaces/<your-account>/talk_with_reac
 git push space talk-with-reachy-math:main
 ```
 
-Keep the `reachy_mini_python_app` tag in the YAML header of `README.md`. The Control App finds apps by that tag.
+Hugging Face reads a Space's settings from a YAML header at the top of its `README.md`, and the Control App finds apps by the `reachy_mini_python_app` tag in it. GitHub would show that header as a table above the README, so this repository keeps it in `deploy/space_header.yml`, and `publish_space.py` puts it back on top of the README it uploads. When pushing by hand, add it yourself first: put the lines of `deploy/space_header.yml` between two `---` lines at the top of `README.md`.
 
 The two GitHub workflows that sync to Hugging Face (`sync-hf-space.yml`, `pr-hf-space-preview.yml`) still point at Pollen's Spaces. Delete them, or change the repository IDs if you want GitHub to publish for you.
 
@@ -360,6 +360,7 @@ All settings are optional environment variables. You can put them in the app's `
 | `profiles/default/profile.md` | Rewritten for children aged 10 to 13: a friendly robot coach with short sentences and everyday words, the math tools, and a greeting that invites the child to a math game. |
 | `src/talk_with_reachy_math/main.py` | Starts and stops study logging around the conversation. |
 | `tests/test_study_*.py`, `tests/test_voice_id.py`, `tests/test_audio_timeline.py`, `tests/test_google_drive_upload.py`, `tests/test_onedrive_upload.py` | New tests. Google, Microsoft Graph, and the speaker model are replaced by fakes. |
+| `README.md`, `docs/readme/`, `docs/ORIGINAL_README.md`, `deploy/space_header.yml`, `deploy/publish_space.py`, `deploy/publish_to_hf.sh` | Rewritten README with pictures. Pollen's README is kept as `docs/ORIGINAL_README.md`. The Hugging Face Space settings moved from the top of `README.md` to `deploy/space_header.yml`, and `publish_space.py` adds them back when it publishes the private Space. |
 | Everything else | Package rename only (`reachy_mini_conversation_app` → `talk_with_reachy_math`). |
 
-In the upstream README, the command `reachy-mini-conversation-app` is `talk-with-reachy-math` in this fork.
+In the developer reference, [docs/ORIGINAL_README.md](docs/ORIGINAL_README.md), the command `reachy-mini-conversation-app` is `talk-with-reachy-math` in this fork.

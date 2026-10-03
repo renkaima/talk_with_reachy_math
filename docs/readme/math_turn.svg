@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 510" role="img" aria-label="How one math answer is handled. The child's answer is turned into text by the speech service, and the language model passes the child's exact words to the math coach. The coach is code in the app on the device: it reads the number, compares it with the answer worked out when the problem was made, decides what Reachy says next (praise, or a small helper question), and records the child's level and a study-log event. The language model then says what the coach decided.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#0f766e"/>
+    </marker>
+  </defs>
+
+  <rect width="1100" height="510" rx="18" fill="#ffffff"/>
+
+  <g font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+
+    <!-- Child -->
+    <g fill="#334155">
+      <circle cx="105" cy="98" r="22"/>
+      <path d="M67 168 C67 140 83 126 105 126 C127 126 143 140 143 168 Z"/>
+    </g>
+    <text x="105" y="198" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">Child</text>
+
+    <!-- Speech service -->
+    <rect x="230" y="20" width="620" height="200" rx="16" fill="#fffbeb" stroke="#b45309" stroke-width="2"/>
+    <text x="250" y="46" font-size="17" font-weight="700" fill="#0f172a">Speech service</text>
+    <text x="392" y="46" font-size="14.5" fill="#475569">on Hugging Face</text>
+    <g font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">
+      <rect x="270" y="64" width="220" height="54" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+      <text x="380" y="96">Speech recognition</text>
+      <rect x="270" y="140" width="220" height="54" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+      <text x="380" y="172">Speech synthesis</text>
+      <rect x="590" y="64" width="240" height="130" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+      <text x="710" y="126">Language model</text>
+      <text x="710" y="146" font-size="14.5" font-weight="400" fill="#475569">reads the problems aloud,</text>
+      <text x="710" y="163" font-size="14.5" font-weight="400" fill="#475569">never judges the answers</text>
+    </g>
+
+    <g stroke="#334155" stroke-width="2" fill="none" marker-end="url(#arrow)">
+      <line x1="160" y1="91" x2="267" y2="91"/>
+      <line x1="270" y1="167" x2="163" y2="167"/>
+      <line x1="490" y1="91" x2="587" y2="91"/>
+      <line x1="590" y1="167" x2="493" y2="167"/>
+    </g>
+    <g font-size="15" fill="#334155" text-anchor="middle">
+      <text x="214" y="82">"About 700?"</text>
+      <text x="214" y="158">hears</text>
+      <text x="540" y="82">text</text>
+      <text x="540" y="158">reply</text>
+    </g>
+
+    <!-- Legend -->
+    <rect x="880" y="40" width="16" height="12" rx="3" fill="#ccfbf1" stroke="#0f766e" stroke-width="1.5"/>
+    <text x="904" y="51" font-size="14.5" fill="#334155">code in this app,</text>
+    <text x="904" y="68" font-size="14.5" fill="#334155">runs on the device</text>
+
+    <!-- Tool call and result -->
+    <line x1="650" y1="194" x2="650" y2="287" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+    <line x1="770" y1="290" x2="770" y2="197" stroke="#0f766e" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
+    <g font-size="14.5" fill="#0f766e">
+      <text x="640" y="244" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-weight="700">check_math_answer</text>
+      <text x="640" y="262" text-anchor="end">with the child's exact words</text>
+      <text x="780" y="244">right or not, and</text>
+      <text x="780" y="262">what to say next</text>
+    </g>
+
+    <!-- Math coach -->
+    <rect x="20" y="290" width="1060" height="200" rx="16" fill="#f0f9f8" stroke="#0f766e" stroke-width="2"/>
+    <text x="40" y="318" font-size="17" font-weight="700" fill="#0f172a">Math coach</text>
+    <text x="152" y="318" font-size="14.5" fill="#475569">checks every answer in code, so Reachy never calls a wrong answer right</text>
+
+    <g font-size="14.5" fill="#134e4a">
+      <rect x="40" y="336" width="233" height="130" rx="10" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+      <text x="54" y="362" font-size="15" font-weight="700" fill="#0f172a">1  Hear the number</text>
+      <text x="54" y="388">"About 700?" → 700</text>
+      <text x="54" y="408">also "three fourths",</text>
+      <text x="54" y="426">"2.5", "negative 4"</text>
+
+      <rect x="297" y="336" width="233" height="130" rx="10" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+      <text x="311" y="362" font-size="15" font-weight="700" fill="#0f172a">2  Compare</text>
+      <text x="311" y="388">with 675, the answer</text>
+      <text x="311" y="406">worked out when the</text>
+      <text x="311" y="424">problem was made</text>
+
+      <rect x="554" y="336" width="233" height="130" rx="10" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+      <text x="568" y="362" font-size="15" font-weight="700" fill="#0f172a">3  Decide what's next</text>
+      <text x="568" y="388">right → praise</text>
+      <text x="568" y="408">close or not yet →</text>
+      <text x="568" y="426">a small helper question:</text>
+      <text x="568" y="446" font-weight="700">"What is 70 × 9?"</text>
+
+      <rect x="811" y="336" width="233" height="130" rx="10" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+      <text x="825" y="362" font-size="15" font-weight="700" fill="#0f172a">4  Record</text>
+      <text x="825" y="388">the child's level,</text>
+      <text x="825" y="406">kept per child by voice</text>
+      <text x="825" y="426">+ an event in the</text>
+      <text x="825" y="444">study log</text>
+    </g>
+    <g stroke="#0f766e" stroke-width="2" fill="none" marker-end="url(#arrow-teal)">
+      <line x1="273" y1="401" x2="294" y2="401"/>
+      <line x1="530" y1="401" x2="551" y2="401"/>
+      <line x1="787" y1="401" x2="808" y2="401"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" role="img" aria-label="Talk with Reachy Math: spoken math games for kids aged 10 to 13 on Reachy Mini, with step-by-step help, answers checked in code, and research-ready logs.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a2378"/>
+      <stop offset="1" stop-color="#6c3fb4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="320" rx="24" fill="url(#bg)"/>
+
+  <!-- Faint math symbols in the background -->
+  <g font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-weight="700" fill="#ffffff" fill-opacity="0.08">
+    <text x="792" y="292" font-size="60">+</text>
+    <text x="790" y="150" font-size="56">÷</text>
+    <text x="1200" y="300" font-size="60">×</text>
+    <text x="1196" y="90" font-size="52">½</text>
+  </g>
+
+  <g font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#ffffff">
+    <text x="64" y="128" font-size="60" font-weight="700">Talk with Reachy Math</text>
+    <text x="66" y="182" font-size="23" fill-opacity="0.92">Spoken math games for kids aged 10–13 on Reachy Mini.</text>
+    <text x="66" y="218" font-size="23" fill-opacity="0.92">Step-by-step help, answers checked in code, research-ready logs.</text>
+    <text x="66" y="268" font-size="16" fill-opacity="0.7" letter-spacing="1.5">MULTIPLICATION TO EQUATIONS · US GRADES 5–7 · ENGLISH</text>
+  </g>
+
+  <!-- Reachy asks a problem -->
+  <g transform="translate(870 44)" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <rect width="320" height="70" rx="18" fill="#ffd166"/>
+    <path d="M40 70 L36 92 L66 70 Z" fill="#ffd166"/>
+    <text x="24" y="44" font-size="22" font-weight="700" fill="#3a2378">What is 75 × 9?</text>
+  </g>
+
+  <!-- The child's estimate -->
+  <g transform="translate(1000 134)" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <rect width="190" height="56" rx="18" fill="#ffffff"/>
+    <path d="M150 56 L158 76 L128 56 Z" fill="#ffffff"/>
+    <text x="95" y="36" font-size="20" font-weight="600" fill="#3a2378" text-anchor="middle">About 700?</text>
+  </g>
+
+  <!-- Reachy breaks it into a smaller step -->
+  <g transform="translate(870 214)" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <rect width="320" height="64" rx="18" fill="#ffd166"/>
+    <path d="M40 64 L36 84 L66 64 Z" fill="#ffd166"/>
+    <text x="24" y="28" font-size="16" font-weight="600" fill="#3a2378">Great estimate! Smaller step:</text>
+    <text x="24" y="50" font-size="18" font-weight="700" fill="#3a2378">What is 70 × 9?</text>
+  </g>
+</svg>
