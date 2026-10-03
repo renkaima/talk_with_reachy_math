@@ -24,6 +24,9 @@ from talk_with_reachy_math.math_practice import (
 from talk_with_reachy_math.tools.math_practice import CheckMathAnswer, NextMathProblem
 
 
+QUICK = math_practice.QUICK_MATH
+
+
 @pytest.mark.parametrize(
     ("said", "value"),
     [
@@ -69,13 +72,6 @@ def test_rounded_decimals_count_only_for_fractions_that_never_end() -> None:
     assert math_practice.answer_matches(F(33, 100), F(1, 3))
     assert not math_practice.answer_matches(F(3, 10), F(1, 3))
     assert not math_practice.answer_matches(F(8, 10), F(3, 4))
-
-
-def test_written_math_is_turned_into_words() -> None:
-    """GSM8K writes 0.2 x 50 and 48/2; Reachy says 'times' and 'divided by'."""
-    assert math_practice._say_expression("she earned 0.2 x 50 = $10") == "she earned 0.2 times 50 equals $10"
-    assert math_practice._say_expression("48/2") == "48 divided by 2"
-    assert math_practice._say_expression("a half-price km/h deal") == "a half-price km/h deal"
 
 
 def test_numbers_are_said_the_way_children_say_them() -> None:
@@ -135,7 +131,7 @@ def _check_problem(problem: math_practice.Problem) -> None:
         else:
             assert x - n[0] == right
     else:
-        assert problem.source.startswith("gsm8k-train-")
+        pytest.fail(f"no check for {problem.skill}")
     assert parse_answer(problem.answer_text) == answer
 
 
@@ -161,19 +157,6 @@ def test_helper_steps_break_the_hard_part_into_small_questions() -> None:
     assert problem.steps[0].ask.startswith(f"Let's break {a} into {big} and {small}.")
     words = " ".join([problem.explanation, *(step.ask for step in problem.steps)]).lower()
     assert not any(w in words for w in ("decompose", "distributive", "multiply each", "both sides"))
-
-
-def test_word_problems_are_bundled_with_their_license() -> None:
-    """300 GSM8K problems, 100 per level, with whole-number answers, helper steps, and the MIT notice."""
-    rows = math_practice.word_problems()
-    assert len(rows) == 300
-    assert {level: sum(r["level"] == level for r in rows) for level in (1, 2, 3)} == {1: 100, 2: 100, 3: 100}
-    assert all(isinstance(r["answer"], int) and len(r["question"].split()) <= 35 for r in rows)
-    assert all(r["steps"] and all(s["ask"].endswith("?") for s in r["steps"]) for r in rows)
-    first = math_practice._word_problem(1, random.Random(0)).steps[0].ask
-    assert "What is" in first and not re.search(r"\d\s*[*/]\s*\d", first)  # said in words, not symbols
-    notice = (math_practice.WORD_PROBLEMS_PATH.parent / "GSM8K_LICENSE.txt").read_text(encoding="utf-8")
-    assert "MIT License" in notice and "OpenAI" in notice
 
 
 def test_level_rule() -> None:
@@ -210,7 +193,7 @@ def test_a_wrong_answer_leads_to_small_helper_questions(study_dir: Path) -> None
     """A miss gets the first helper question, not the answer; right helper answers end in 'with_help'."""
     study_log.start()
     coach = MathCoach(random.Random(1))
-    asked = coach.next_problem()
+    asked = coach.next_problem(game=QUICK)
     assert asked["problem_id"] == "M001" and asked["say"]
     assert coach._open is not None
     steps = coach._open.problem.steps
@@ -240,7 +223,7 @@ def test_missed_helper_answers_are_given_and_count_as_missed(study_dir: Path) ->
     """A wrong helper answer is told kindly and the next one is asked; at the end the answer is explained."""
     study_log.start()
     coach = MathCoach(random.Random(1))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     assert coach._open is not None
     steps = coach._open.problem.steps
     coach.check_answer(_answer_for(coach, wrong=True))
@@ -259,7 +242,7 @@ def test_missed_helper_answers_are_given_and_count_as_missed(study_dir: Path) ->
 def test_a_close_guess_is_praised_as_an_estimate() -> None:
     """75 times 9 answered 'around seven hundred' is close (within 10 percent), so Reachy says so."""
     coach = MathCoach(random.Random(1))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     assert coach._open is not None
     answer = coach._open.problem.answer
     near = math_practice.say_number(answer + max(1, answer // 20))
@@ -270,7 +253,7 @@ def test_a_close_guess_is_praised_as_an_estimate() -> None:
 def test_jumping_straight_to_the_answer_during_help_counts(alice: Path) -> None:
     """A child who works it out after the first helper question is done, with help."""
     coach = MathCoach(random.Random(1))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     coach.check_answer(_answer_for(coach, wrong=True))
     done = coach.check_answer(_answer_for(coach))
     assert done["correct"] is True and done["next_problem"]["problem_id"] == "M002"
@@ -281,7 +264,7 @@ def test_saying_no_number_is_asked_again_but_i_dont_know_gets_help(study_dir: Pa
     """Mumbling gets 'say it as a number' and is not a try; 'I don't know' starts the helper questions."""
     study_log.start()
     coach = MathCoach(random.Random(2))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     unclear = coach.check_answer("um, wait")
     assert unclear["heard_a_number"] is False and "number" in unclear["instructions"]
     assert coach._open is not None and coach._open.attempts == 0
@@ -297,7 +280,7 @@ def test_right_on_the_first_try(study_dir: Path) -> None:
     """A right first answer is praised and logged as first_try."""
     study_log.start()
     coach = MathCoach(random.Random(2))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     right = coach.check_answer(f"is it {_answer_for(coach)}?")
     assert right["correct"] is True and "Praise" in right["instructions"] and "explanation" not in right
     study_log.stop()
@@ -333,26 +316,32 @@ def test_a_round_of_five_problems_runs_without_asking(study_dir: Path) -> None:
     """Each finished problem brings the next one straight away; after five, the round ends and the topic moves on."""
     study_log.start()
     coach = MathCoach(random.Random(5))
-    asked = coach.next_problem()
+    asked = coach.next_problem(game=QUICK)
     assert asked["round_position"] == "1 of 5" and "round of 5 multiplication problems" in asked["instructions"]
     results = [coach.check_answer(_answer_for(coach)) for _ in range(5)]
     for result in results[:4]:
         assert result["next_problem"]["say"] in result["instructions"] and "Next one!" in result["instructions"]
         assert "want another" not in result["instructions"]
     assert "next_problem" not in results[4] and results[4]["round_finished"] == {"problems": 5, "first_try_correct": 5}
-    assert "another round or a short break" in results[4]["instructions"] and coach._open is None
-    assert coach.next_problem()["topic"] == "division"
+    assert "pick the next game" in results[4]["instructions"] and "a short break" in results[4]["instructions"]
+    assert coach._open is None
+    assert coach.next_problem(game=QUICK)["topic"] == "division"
     study_log.stop()
     problems = [r for r in records(study_dir) if r.get("event") == "math_problem"]
     assert [(p["round"], p["position"]) for p in problems] == [(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (2, 1)]
 
 
-def test_the_greeting_starts_the_game_with_a_problem() -> None:
-    """At the start, the app opens a warm-up problem and puts it into Reachy's greeting."""
+def test_the_greeting_lets_the_child_pick_a_game(monkeypatch: pytest.MonkeyPatch) -> None:
+    """At the start, Reachy offers two games; if the child talks about something else, it comes back to them."""
+    monkeypatch.setenv(math_practice.MATH_ENV, "1")
     coach = MathCoach(random.Random(10))
-    greeting = coach.greeting_with_first_problem("Say hi.")
-    assert coach._open is not None and greeting.startswith("Say hi.")
-    assert f'"{coach._open.problem.text}"' in greeting and "check_math_answer" in greeting
+    greeting = coach.greeting_with_game_choice("Say hi.")
+    a, b = coach._offered
+    assert greeting.startswith("Say hi.") and f"(game '{a}')" in greeting and f"(game '{b}')" in greeting
+    assert coach._open is None and coach.practice_active()
+    assert coach.note_after_user_turn("I like dogs.") is None
+    note = coach.note_after_user_turn("Do you like dogs?")
+    assert note is not None and f"(game '{a}')" in note
 
 
 def test_reachy_is_told_to_steer_back_when_the_child_drifts(study_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -360,7 +349,7 @@ def test_reachy_is_told_to_steer_back_when_the_child_drifts(study_dir: Path, mon
     monkeypatch.setenv(math_practice.MATH_ENV, "1")
     study_log.start()
     coach = MathCoach(random.Random(11))
-    asked = coach.next_problem()
+    asked = coach.next_problem(game=QUICK)
     assert coach.note_after_user_turn("Do you like dogs?") is None
     note = coach.note_after_user_turn("I have a dog called Max.")
     assert note is not None and note.startswith("Math practice:") and asked["say"] in note
@@ -380,18 +369,18 @@ def test_between_rounds_the_note_invites_another_round(monkeypatch: pytest.Monke
     """With no problem open but practice under way, the note invites another round instead."""
     monkeypatch.setenv(math_practice.MATH_ENV, "1")
     coach = MathCoach(random.Random(12))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     for _ in range(5):
         coach.check_answer(_answer_for(coach))
     coach.note_after_user_turn("Let's take a break.")
     note = coach.note_after_user_turn("What do robots eat?")
-    assert note is not None and "another round" in note and "stop_math_practice" in note
+    assert note is not None and "pick the next math game" in note and "stop_math_practice" in note
 
 
 def test_unidentified_children_practice_without_a_saved_file(tmp_path: Path) -> None:
     """With no known speaker, nothing is written under people/."""
     coach = MathCoach(random.Random(6))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     coach.check_answer(_answer_for(coach))
     assert not (tmp_path / "people").exists()
 
@@ -410,7 +399,7 @@ def test_reachy_invites_again_three_minutes_after_the_greeting(alice: Path, monk
     assert coach.offer_note_if_due(now=400.0) is None
     assert coach.offer_note_if_due(now=462.0) is not None
 
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     assert coach.offer_note_if_due() is None  # practice under way
     coach.stop("done")
     assert coach.offer_note_if_due() is None  # just stopped: wait a full interval
@@ -421,7 +410,7 @@ def test_reachy_invites_again_three_minutes_after_the_greeting(alice: Path, monk
 def test_stop_reports_each_childs_results(alice: Path) -> None:
     """Stopping returns how many problems each child did and how many were right on the first try."""
     coach = MathCoach(random.Random(8))
-    coach.next_problem()
+    coach.next_problem(game=QUICK)
     coach.check_answer(_answer_for(coach))  # opens the next problem
     coach.check_answer(_answer_for(coach, wrong=True))
     assert coach.stop("child wants to play") == {
@@ -443,11 +432,11 @@ def test_tools_pass_through_to_the_coach(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_the_default_profile_greets_a_child_with_a_math_game(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reachy opens with a hello that leads into a puzzle, in a child's words, and keeps the game going."""
+    """Reachy opens with a hello in a child's words, lets the child pick a game, and keeps the game going."""
     monkeypatch.setattr(config, "REACHY_MINI_CUSTOM_PROFILE", None)
     greeting = prompts.get_session_greeting_prompt()
-    assert "math games" in greeting and "puzzle" in greeting and "10-year-old" in greeting
-    assert "The app puts the first problem into your greeting" in prompts.MATH_GUIDANCE
+    assert "math games" in greeting and "10-year-old" in greeting
+    assert "let the child pick one of the two games" in prompts.MATH_GUIDANCE
     assert "Do not ask whether they want another one" in prompts.MATH_GUIDANCE
 
 

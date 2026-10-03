@@ -499,7 +499,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
             self._startup_greeting_sent = True
             return
         if math_practice.enabled() and "next_math_problem" in core_tools.get_tools():
-            greeting_prompt = math_practice.coach().greeting_with_first_problem(greeting_prompt)
+            greeting_prompt = math_practice.coach().greeting_with_game_choice(greeting_prompt)
 
         try:
             await self.connection.conversation.item.create(

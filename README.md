@@ -4,16 +4,19 @@
 
 <p align="center">
   <a href="#what-a-game-sounds-like">A game</a> ·
+  <a href="#the-five-games">The five games</a> ·
   <a href="#what-the-app-does">What it does</a> ·
   <a href="#how-reachy-checks-an-answer">How answers are checked</a> ·
   <a href="#math-topics-and-levels">Topics and levels</a> ·
+  <a href="docs/LEARNING_DESIGN.md">Research behind the design</a> ·
   <a href="#what-gets-recorded">What gets recorded</a> ·
   <a href="#privacy-and-responsibility">Privacy</a> ·
-  <a href="#try-it">Try it</a> ·
-  <a href="STUDY_SETUP.md">Study setup guide</a>
+  <a href="#try-it">Try it</a>
 </p>
 
-**Talk with Reachy Math** is an app for [Reachy Mini](https://github.com/pollen-robotics/reachy_mini), a small robot by Pollen Robotics. Reachy plays short spoken math games with children aged about 10 to 13 (US grades 5 to 7), in English. It reads each problem aloud, listens to the child's answer, and, when the answer is not right yet, helps with small step-by-step questions. Every answer is checked in code, not by the language model, so Reachy never calls a wrong answer right.
+**Talk with Reachy Math** is an app for [Reachy Mini](https://github.com/pollen-robotics/reachy_mini), a small robot by Pollen Robotics. Reachy plays spoken math games with children aged about 10 to 13 (US grades 5 to 7), in English. The child picks a game: a story adventure, fixing Reachy's mistakes, number riddles, a closest guess game, or quick math. Reachy reads each problem aloud, listens to the child's answer, and, when the answer is not right yet, helps with small step-by-step questions. Every answer is checked in code, not by the language model, so Reachy never calls a wrong answer right.
+
+Each game is built on findings from research on learning and motivation, such as how stories, choice, and explaining mistakes help children learn math. [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md) explains each design choice and lists the studies behind it.
 
 The app is built on **[Talk with Reachy](https://github.com/renkaima/talk_with_reachy)**, so it also keeps a research record of each conversation: what was said, when it was said, and who said it, recognized by voice. It was built for research studies.
 
@@ -22,34 +25,46 @@ The app is built on **[Talk with Reachy](https://github.com/renkaima/talk_with_r
 
 ## What a game sounds like
 
-An example; Reachy's exact wording varies.
+An example of the "fix my mistakes" game; Reachy's exact wording varies.
 
-> **Reachy:** Hi! I'm Reachy, a little robot who loves math games, and I have a puzzle for you. What is 75 times 9?<br>
-> **Child:** Probably around seven hundred?<br>
-> **Reachy:** Great estimate, that's really close! Let's break 75 into 70 and 5. What is 70 times 9?<br>
-> **Child:** 630.<br>
-> **Reachy:** Yes! Now, what is 5 times 9?<br>
-> **Child:** 45.<br>
-> **Reachy:** Last step: what is 630 plus 45?<br>
-> **Child:** 675!<br>
-> **Reachy:** You worked it out step by step: 75 times 9 is 675! Next one: what is 64 times 3?<br>
-> **Child:** Wait, do you like dogs?<br>
-> **Reachy:** I love dogs, especially fluffy ones! Now, back to our puzzle: what is 64 times 3?
+> **Reachy:** Hi! I'm Reachy, a little robot who loves playing math games. Do you want to fix my mistakes, or try some number riddles?<br>
+> **Child:** Fix your mistakes!<br>
+> **Reachy:** Yay, I need your help! Can you check my work? I tried 1 half plus 1 third. I added the top numbers and the bottom numbers. I got 2 fifths. What is the real answer?<br>
+> **Child:** Two fifths?<br>
+> **Reachy:** I got that too! Let's check it together. Let's make the bottom numbers the same. 6 works for both. 1 half is how many sixths?<br>
+> **Child:** Three.<br>
+> **Reachy:** Yes! 1 third is how many sixths?<br>
+> **Child:** Two. Oh, so it's 5 sixths!<br>
+> **Reachy:** You fixed it: 1 half plus 1 third is 5 sixths! My mistake was adding the bottom numbers. They must be the same before we add. Next one! Can you check my work? I tried 3 plus 4 times 5…
+
+## The five games
+
+At the start, and after every round of five problems, Reachy lets the child pick one of two games. Over a few rounds, every game comes up.
+
+| Game | What happens | Math practiced |
+|---|---|---|
+| **Story adventure** | Reachy tells a five-part story about something the child likes, such as space, dogs, or soccer. Each part needs one problem solved to go on: "Oh no, we are stuck! To get going, we need 3 fourths of our 24 moon rocks." | multiplication, division, a fraction of a number, percent off, order of operations |
+| **Fix my mistakes** | Reachy shows its own work with a common mistake in it. The child finds the real answer, and Reachy asks them what it did wrong. | fractions, decimals, order of operations, negative numbers, multiplication, percent, equations |
+| **Number riddles** | "I'm thinking of a number between 20 and 30. It is odd. It is in the 3 times table. What is my number?" A wrong guess hears which clue it does not fit. | even and odd numbers, times tables, digits |
+| **Closest guess** | "6 boxes have 49 moon rocks in each. About how many moon rocks is that?" The child guesses, then Reachy, and the closer guess wins. Reachy then shares the rounding trick. | estimating by rounding |
+| **Quick math** | Plain problems, five on one topic, then the next topic. | the eight topics [below](#math-topics-and-levels) |
+
+The story and guessing games use what the child likes: Reachy can pick from seven themes (space, dogs, soccer, dinosaurs, pizza, the ocean, and video games), and the app remembers each child's theme for next time.
 
 ## What the app does
 
 **For the child**
 
-- Reachy starts the game right away: its hello ends with a first puzzle. Problems then come one after another in rounds of five, and after each round Reachy offers another round or a break.
-- If the child talks about something else, Reachy answers briefly and brings them back to the puzzle. If the child finds it boring, Reachy switches to another topic or a challenge instead of stopping. It stops only when the child clearly says so, and invites them back a few minutes later.
-- Reachy talks like a friendly coach for a 10-year-old: short sentences, everyday words, and praise for effort. It never says "wrong"; it says "Not quite yet".
+- Reachy starts right away: its hello ends with a choice of two games. Problems then come one after another in rounds of five.
+- If the child talks about something else, Reachy answers briefly and brings them back to the game. If the child finds it boring, Reachy offers another game instead of stopping. It stops only when the child clearly says so, and invites them back a few minutes later.
+- Everything the app gives Reachy to read uses short sentences (at most 15 words) and words that most 4th graders know, plus math words from school such as "fraction". A test checks every problem, helper question, and explanation against the Dale-Chall list of familiar words.
 - When an answer is not right, or the child says "I don't know", Reachy breaks the problem into small helper questions instead of giving the answer.
 - Problems get harder or easier as the child goes, separately for each topic and each child.
 
 **For the researcher**
 
-- Every problem, answer, helper question, and level change is logged with its time and the child's speaker ID.
-- Each child's level is kept between sessions, found by their voice.
+- Every problem, answer, helper question, and level change is logged with its time, the game, and the child's speaker ID.
+- Each child's levels and favorite theme are kept between sessions, found by their voice.
 - Everything Talk with Reachy records is recorded too: timed transcripts, speaker IDs by voice, an audio clip per person utterance, and robot actions. The robot uploads it all to a Google Drive folder every five minutes.
 
 ## How Reachy checks an answer
@@ -58,15 +73,15 @@ An example; Reachy's exact wording varies.
   <img src="docs/readme/math_turn.svg" alt="Diagram: the child's answer goes through speech recognition to the language model, which passes the child's exact words to the math coach in the app. The coach reads the number, compares it with the answer worked out when the problem was made, decides what Reachy says next, and records the child's level. The language model then says what the coach decided." width="100%">
 </p>
 
-1. **Reachy reads a problem** that the app generated, with its answer already worked out. Word problems come from a set of 300 [GSM8K](https://github.com/openai/grade-school-math) problems chosen for this age group.
+1. **Reachy reads a problem** that the app made, with its answer already worked out.
 2. **The child answers aloud.** The speech service turns the answer into text, and the language model passes the child's exact words to the app's math coach.
 3. **The math coach reads the number** from those words: digits, number words ("seventy-two"), decimals, fractions ("three fourths"), mixed numbers, and negatives.
-4. **The coach compares it with the stored answer and decides what comes next.** A right answer gets praise. An answer that is not right yet gets a small helper question, and a guess within 10 percent is praised as a good estimate. After the last helper question, Reachy says the whole answer, and explains it if the child's last answer was not right either.
-5. **The coach records the result and keeps the game going.** It writes every answer to the study log and, when a problem is finished, updates the child's level for that topic and hands over the next problem of the round. The language model then says what the coach decided, in a child's words, and reads the next problem.
+4. **The coach compares it with the stored answer and decides what comes next.** A right answer gets praise. An answer that is not right yet gets a small helper question, and a guess within 10 percent is praised as a good estimate. Each game adds its own reply: in a riddle, Reachy names the clue a wrong guess does not fit; when a child repeats Reachy's own mistake, Reachy says it got that too and checks it with them; in the closest guess game, any number counts as a guess, and the coach works out whose guess was closer. After the last helper question, Reachy says the whole answer, and explains it if the child's last answer was not right either.
+5. **The coach records the result and keeps the game going.** It writes every answer to the study log and, when a problem is finished, updates the child's level and hands over the next problem of the round. The language model then says what the coach decided and reads the next problem.
 
 ## Math topics and levels
 
-Eight topics follow the US Common Core standards for grades 5 to 7, and a ninth gives word problems. Each topic has three levels. Practice stays on one topic for five problems and then moves to the next, unless the child asks for a topic.
+Eight topics follow the US Common Core standards for grades 5 to 7. Each topic has three levels. The story adventure and "fix my mistakes" draw on these topics at the child's level in each. Number riddles and the closest guess game have three levels of their own.
 
 | Topic | Level 1 | Level 2 | Level 3 | How Reachy helps |
 |---|---|---|---|---|
@@ -77,17 +92,23 @@ Eight topics follow the US Common Core standards for grades 5 to 7, and a ninth 
 | Percentages | 10, 25, 50 percent | 5, 20, 30, 40, 60, 75 percent | 12, 15, 35, 45, 65, 85 percent | starts from 50, 25, or 10 percent |
 | Negative numbers | add | subtract a negative | multiply | uses a number line and the sign rules |
 | Order of operations | a + b × c | (a + b) × c − d | a × b − c ÷ d | does one operation at a time |
-| Equations | x ± a = b | a × x = b | a × x + b = c | treats x as a mystery number |
-| Word problems | 2 steps | 3 steps | 4 steps | asks one calculation of the solution at a time |
+| Equations | x ± a = b | a × x = b | a × x + b = c | treats x as a secret number |
 
-**How levels change.** Each child starts every topic at level 1. Three problems in a row answered right on the first try move the child up one level. Two problems in a row in which Reachy had to give away an answer move the child down one level. A problem solved with help, with every helper question answered right, leaves the level as it is.
+In stories, the numbers stay small enough to work out while listening; for example, story multiplication at level 2 is a 2-digit number times a 1-digit number.
+
+| Game level | Level 1 | Level 2 | Level 3 |
+|---|---|---|---|
+| Number riddles | a number between two tens 10 apart; clues: even or odd, the 3, 4, or 5 times table, the sum of its digits | 20 apart; the 3, 4, 6, 7, or 9 times table, the last digit | 30 apart, up to 150; the 6, 7, 8, 9, 11, or 12 times table |
+| Closest guess | about 2-digit × 1-digit | about 2-digit × 2-digit | about 3-digit × 2-digit |
+
+**How levels change.** Each child starts every topic and game at level 1. Three problems in a row answered right on the first try (in the closest guess game: three close guesses in a row) move the child up one level. Two problems in a row in which Reachy had to give away an answer move the child down one level. A problem solved with help, with every helper question answered right, leaves the level as it is.
 
 ## A study session, step by step
 
 | When | Who | What happens |
 |---|---|---|
 | **Before** | Researcher | Installs the app on the robot from the Reachy Mini Control app, signs the robot in to Google Drive once, and enrolls each child's voice (about 20 seconds of speech per child). |
-| **During** | Children | Reachy invites them to a math game, plays a few problems with each child at that child's level, and chats in between. |
+| **During** | Children | Reachy lets them pick a math game, plays rounds of five problems at each child's level, and chats in between. |
 | **After** | Researcher | Opens the Google Drive folder *Talk with Reachy Math*. It holds the transcripts with all math events, the audio clips, and each child's math progress. The same files stay on the robot. |
 
 ## How the recording works
@@ -116,7 +137,7 @@ talk_with_reachy_math_data/
 └── people/<speaker ID>/math_progress.json       the child's level in each topic
 ```
 
-The math events are `math_problem` (the problem, its topic and level, the answer, and its place in the round), `math_answer` (what the child said, the number read from it, whether it was right, and which helper question it answered), `math_level_change`, and `math_practice_stopped`. One answer looks like this (one line in the file, spread out here):
+The math events are `math_problem` (the game and theme, the problem, its topic and level, the answer, Reachy's own wrong answer or guess, and its place in the round), `math_answer` (what the child said, the number read from it, whether it was right, which helper question it answered, and, depending on the game, the clue a riddle guess broke or who won a closest guess), `math_level_change`, and `math_practice_stopped`. One answer looks like this (one line in the file, spread out here):
 
 ```json
 {
@@ -171,11 +192,12 @@ The app is provided "as is", without warranty of any kind, under the [Apache 2.0
 - **Check voice ID before relying on it,** especially with children's voices: the voice-matching thresholds come from a check on clean recordings of six speakers and have not been validated on children's voices or in a noisy room ([details](STUDY_SETUP.md#voice-identification)).
 - **Separate from Talk with Reachy.** This app has its own data folder, Google Drive folder, Google sign-in, and voice library, and its Python package `talk_with_reachy_math` installs next to the other apps on the same robot.
 - **Math can be switched off** with the setting `TALK_WITH_REACHY_MATH_PRACTICE=0`.
+- **The research behind the games is not an evaluation of this app.** The studies in [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md) tested other games, tutors, and robots, mostly on screens and with other age groups. Whether these games help children learn is a question for a study.
 
 ## Credits and license
 
 - Built on [Talk with Reachy](https://github.com/renkaima/talk_with_reachy), which is built on Pollen Robotics' [reachy_mini_conversation_app](https://github.com/pollen-robotics/reachy_mini_conversation_app) (both Apache 2.0). The changes from Talk with Reachy are the commits after commit `624b78b`, and the changes from Pollen's app are the commits after upstream commit `5eb39ed`. This app is not affiliated with or endorsed by Pollen Robotics; "Reachy Mini" names the robot that the app runs on.
-- Word problems: a subset of [GSM8K](https://github.com/openai/grade-school-math) by OpenAI (MIT License; see `src/talk_with_reachy_math/math_data/GSM8K_LICENSE.txt`).
+- The word check in the tests uses the Dale-Chall list of familiar words as shipped with [textstat](https://github.com/textstat/textstat) (MIT License); it is a test-only dependency.
 - Voice ID uses NVIDIA NeMo's TitaNet-S speaker model through [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx).
 - Maintained by Renkai Ma ([@renkaima](https://github.com/renkaima)).
 - License: Apache 2.0, see [LICENSE](LICENSE).

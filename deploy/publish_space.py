@@ -109,6 +109,7 @@ def main() -> int:
         repo_type="space",
         folder_path=repo_dir,
         ignore_patterns=IGNORE,
+        delete_patterns=["src/*", "deploy/*", "tests/*", "docs/*"],  # drop files this version no longer has
         commit_message="Deploy Talk with Reachy Math",
     )
     upload_readme(api, repo_id, repo_dir)

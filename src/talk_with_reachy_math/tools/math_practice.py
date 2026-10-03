@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from talk_with_reachy_math import math_practice
+from talk_with_reachy_math import math_games, math_practice
 from talk_with_reachy_math.tools.core_tools import Tool, ToolDependencies
 
 
@@ -15,27 +15,41 @@ class NextMathProblem(Tool):
 
     name = "next_math_problem"
     description = (
-        "Start a round of math problems for the child speaking now, chosen for their level, or switch to another "
-        "topic. Within a round, check_math_answer already gives you the next problem. "
+        "Start a round of a math game for the child speaking now, or switch to another game. A round has five "
+        "problems; within a round, check_math_answer already gives you the next problem. "
         "Read the returned 'say' text exactly. Never work out or reveal the answer yourself."
     )
     parameters_schema = {
         "type": "object",
         "properties": {
+            "game": {
+                "type": "string",
+                "enum": list(math_practice.GAMES),
+                "description": "The game the child picked. Leave it out to keep the current game.",
+            },
+            "theme": {
+                "type": "string",
+                "enum": list(math_games.THEMES),
+                "description": "What the child likes, for stories and guessing games. Pass it when you learn what "
+                "they like; it is saved for next time.",
+            },
             "topic": {
                 "type": "string",
                 "enum": math_practice.topics(),
-                "description": "Only to switch topics, for example when the child asks for one or finds the "
-                "current one boring; otherwise leave it out.",
+                "description": "Only for quick math, when the child asks for a topic; otherwise leave it out.",
             },
         },
     }
 
     async def __call__(self, deps: ToolDependencies, **kwargs: Any) -> dict[str, Any]:
         """Open a problem and return the text to read."""
-        topic = kwargs.get("topic")
-        result = math_practice.coach().next_problem(topic if isinstance(topic, str) else None)
-        logger.info("Tool call: next_math_problem %s", result.get("problem_id"))
+        topic, game, theme = (kwargs.get(k) for k in ("topic", "game", "theme"))
+        result = math_practice.coach().next_problem(
+            topic if isinstance(topic, str) else None,
+            game if isinstance(game, str) else None,
+            theme if isinstance(theme, str) else None,
+        )
+        logger.info("Tool call: next_math_problem %s %s", result.get("problem_id"), result.get("game"))
         return result
 
 

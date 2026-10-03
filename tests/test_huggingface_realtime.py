@@ -955,23 +955,23 @@ async def test_movement_after_speech_or_a_person_needs_no_follow_up(monkeypatch:
 
 
 @pytest.mark.asyncio
-async def test_startup_greeting_carries_the_first_math_problem(monkeypatch: Any) -> None:
-    """With the math tools on, the greeting prompt ends with the first problem to read."""
+async def test_startup_greeting_lets_the_child_pick_a_math_game(monkeypatch: Any) -> None:
+    """With the math tools on, the greeting prompt ends with a choice of two math games."""
     handler = _plain_handler()
     handler.connection = _FakeConnection()
     monkeypatch.setattr(hf_mod, "get_session_greeting_prompt", lambda: "Say hi.")
     monkeypatch.setattr(hf_mod.core_tools, "get_tools", lambda: {"next_math_problem": object()})
     monkeypatch.setattr(hf_mod.math_practice, "enabled", lambda: True)
     coach = MagicMock()
-    coach.greeting_with_first_problem.return_value = 'Say hi. Then read: "What is 2 times 3?"'
+    coach.greeting_with_game_choice.return_value = "Say hi. Then let them pick: riddles or a story."
     monkeypatch.setattr(hf_mod.math_practice, "coach", lambda: coach)
     monkeypatch.setattr(handler, "_safe_response_create", AsyncMock())
 
     await handler._send_startup_greeting_prompt()
 
     item = handler.connection.conversation.item.create.await_args.kwargs["item"]
-    assert item["content"][0]["text"] == 'Say hi. Then read: "What is 2 times 3?"'
-    coach.greeting_with_first_problem.assert_called_once_with("Say hi.")
+    assert item["content"][0]["text"] == "Say hi. Then let them pick: riddles or a story."
+    coach.greeting_with_game_choice.assert_called_once_with("Say hi.")
 
 
 @pytest.mark.asyncio

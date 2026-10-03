@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "talk_with_reachy_math"
-version = "1.2.0"
+version = "1.3.0"
 authors = [{ name = "Pollen Robotics", email = "contact@pollen-robotics.com" }]
 description = ""
 readme = "README.md"
@@ -45,6 +45,7 @@ dev = [
   "ruff==0.15.20",
   "mypy==2.2.0",
   "pre-commit",
+  "textstat==0.7.13",  # word list for tests/test_kid_words.py
 ]
 
 [project.scripts]
@@ -74,7 +75,6 @@ where = ["src"]
 talk_with_reachy_math = [
   "static/**/*",
   ".env.example",
-  "math_data/*",
 ]
 talk_with_reachy_math_data = [
   "profiles/**/*.md",
