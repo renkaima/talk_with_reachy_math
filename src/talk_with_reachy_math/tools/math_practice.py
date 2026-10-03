@@ -15,7 +15,8 @@ class NextMathProblem(Tool):
 
     name = "next_math_problem"
     description = (
-        "Get the next math practice problem for the child speaking now, chosen for their level. "
+        "Start a round of math problems for the child speaking now, chosen for their level, or switch to another "
+        "topic. Within a round, check_math_answer already gives you the next problem. "
         "Read the returned 'say' text exactly. Never work out or reveal the answer yourself."
     )
     parameters_schema = {
@@ -24,7 +25,8 @@ class NextMathProblem(Tool):
             "topic": {
                 "type": "string",
                 "enum": math_practice.topics(),
-                "description": "Only if the child asks for a topic; otherwise leave it out.",
+                "description": "Only to switch topics, for example when the child asks for one or finds the "
+                "current one boring; otherwise leave it out.",
             },
         },
     }

@@ -51,6 +51,8 @@ MIN_LEVEL, MAX_LEVEL = 1, 3
 LEVEL_UP_AFTER = 3  # first-try correct answers in a row
 LEVEL_DOWN_AFTER = 2  # problems in a row in which Reachy gave away an answer
 PROBLEMS_PER_SKILL = 5  # then the next problem without a topic moves on to the next skill
+ROUND_SIZE = 5  # problems Reachy asks one after another before offering a break
+STEER_AFTER_TURNS = (2, 5)  # turns in a row without math after which Reachy is told to steer back
 CLOSE_ENOUGH = Fraction(1, 10)  # a first answer this close (relative) is praised as a good estimate
 # Words that mean "I need help" when a child says no number; anything else is asked again.
 _ASKS_FOR_HELP = re.compile(
@@ -1067,6 +1069,10 @@ class MathCoach:
         self._last_activity_mono: float | None = None
         self._last_offer_mono: float | None = None
         self._session_results: dict[str, list[str]] = {}
+        self._rounds = 0  # rounds started in this app run
+        self._round_count = 0  # problems opened in the current round
+        self._round_first_try = 0  # of those, answered right on the first try
+        self._turns_since_math = 0  # things people said since the last math tool call
 
     # -- who is answering
 
@@ -1107,30 +1113,39 @@ class MathCoach:
     # -- practice flow
 
     def next_problem(self, topic: str | None = None) -> dict[str, Any]:
-        """Pick and open the next problem for whoever is speaking now."""
+        """Open the next problem for whoever is speaking now, starting a new round if none is under way."""
         with self._lock:
-            speaker_id = self._speaker()
-            learner = self._learner(speaker_id)
-            if topic in SKILLS and topic != learner.current_skill:
-                learner.current_skill, learner.problems_in_skill = str(topic), 0
-            elif topic not in SKILLS and learner.problems_in_skill >= PROBLEMS_PER_SKILL:
-                names = list(SKILLS)
-                learner.current_skill = names[(names.index(learner.current_skill) + 1) % len(names)]
-                learner.problems_in_skill = 0
-            skill = SKILLS[learner.current_skill]
-            level = learner.skill(skill.name).level
-            problem = skill.generate(level, self._rng)
-            if self._open is not None:
-                study_log.record_event(
-                    "math_problem_skipped", problem_id=self._open.problem_id, attempts=self._open.attempts
-                )
-            self._count += 1
-            problem_id = f"M{self._count:03d}"
-            now = time.monotonic()
-            self._open = OpenProblem(problem_id, problem, speaker_id, now)
-            self._last_activity_mono = now
-            learner.problems_in_skill += 1
-            self._save(learner)
+            if self._round_count >= ROUND_SIZE or not self.practice_active():
+                self._rounds += 1
+                self._round_count = self._round_first_try = 0
+            return self._open_next(topic)
+
+    def _open_next(self, topic: str | None) -> dict[str, Any]:
+        """Pick, open, and log a problem; return what Reachy needs to ask it. Caller holds the lock."""
+        speaker_id = self._speaker()
+        learner = self._learner(speaker_id)
+        if topic in SKILLS and topic != learner.current_skill:
+            learner.current_skill, learner.problems_in_skill = str(topic), 0
+        elif topic not in SKILLS and learner.problems_in_skill >= PROBLEMS_PER_SKILL:
+            names = list(SKILLS)
+            learner.current_skill = names[(names.index(learner.current_skill) + 1) % len(names)]
+            learner.problems_in_skill = 0
+        skill = SKILLS[learner.current_skill]
+        level = learner.skill(skill.name).level
+        problem = skill.generate(level, self._rng)
+        if self._open is not None:
+            study_log.record_event(
+                "math_problem_skipped", problem_id=self._open.problem_id, attempts=self._open.attempts
+            )
+        self._count += 1
+        self._round_count += 1
+        self._turns_since_math = 0
+        problem_id = f"M{self._count:03d}"
+        now = time.monotonic()
+        self._open = OpenProblem(problem_id, problem, speaker_id, now)
+        self._last_activity_mono = now
+        learner.problems_in_skill += 1
+        self._save(learner)
         study_log.record_event(
             "math_problem",
             now,
@@ -1142,14 +1157,27 @@ class MathCoach:
             text=problem.text,
             answer=problem.answer_text,
             source=problem.source,
+            round=self._rounds,
+            position=self._round_count,
         )
+        instructions = (
+            "Read the problem exactly as written, then wait for the answer. "
+            "Never say or hint at the answer before the child has tried."
+        )
+        if self._round_count == 1:
+            instructions = (
+                f"This starts a round of {ROUND_SIZE} {skill.title} problems; say so in a few fun words. "
+                + instructions
+            )
+        if problem.skill == "word_problems":
+            instructions += " Read it slowly. If they ask, repeat it or explain a word, but never give the answer."
         return {
             "problem_id": problem_id,
             "say": problem.text,
             "topic": skill.title,
             "level": problem.level,
-            "instructions": "Read the problem exactly as written, then wait for the answer. "
-            "Never say or hint at the answer before the child has tried.",
+            "round_position": f"{self._round_count} of {ROUND_SIZE}",
+            "instructions": instructions,
         }
 
     def check_answer(self, child_answer: str) -> dict[str, Any]:
@@ -1160,6 +1188,7 @@ class MathCoach:
                 return {"error": "No problem is open. Call next_math_problem first."}
             now = time.monotonic()
             self._last_activity_mono = now
+            self._turns_since_math = 0
             speaker_id = self._speaker()
             problem = open_problem.problem
             heard = parse_answer(child_answer)
@@ -1248,7 +1277,7 @@ class MathCoach:
         now: float,
         fields: dict[str, Any],
     ) -> dict[str, Any]:
-        """Close the problem, update the child's level, and tell Reachy how to wrap up. Caller holds the lock."""
+        """Close the problem, update the child's level, and give Reachy the next problem. Caller holds the lock."""
         problem = open_problem.problem
         learner = self._learner(speaker_id)
         progress = learner.skill(problem.skill)
@@ -1269,23 +1298,36 @@ class MathCoach:
             )
         result: dict[str, Any] = {"correct": correct, "answer": problem.answer_text}
         if outcome == "first_try":
-            result["instructions"] = (
-                "Praise them briefly and specifically; you may play a happy emotion. "
-                "Then ask if they want another one."
-            )
+            self._round_first_try += 1
+            wrap_up = "Praise them out loud in a few specific words."
         elif correct:
             result["explanation"] = problem.explanation
-            result["instructions"] = (
-                f"Cheer: they worked it out step by step! Say the whole answer, {problem.answer_text}, "
-                "in one short sentence. Then ask if they want another one."
+            wrap_up = (
+                f"Cheer out loud: they worked it out step by step! Say the whole answer, {problem.answer_text}, "
+                "in one short sentence."
             )
         else:
             result["explanation"] = problem.explanation
-            result["instructions"] = (
+            wrap_up = (
                 f"Kindly tell them the answer is {problem.answer_text}, then explain it with the explanation in two "
-                "or three short, simple sentences. Praise their effort; tricky ones help their brain grow. "
-                "Then ask if they want another one."
+                "or three short, simple sentences. Praise their effort; tricky ones help their brain grow."
             )
+        if self._round_count < ROUND_SIZE:
+            asked = self._open_next(None)
+            result["next_problem"] = {key: asked[key] for key in ("problem_id", "say", "topic", "level")}
+            go_on = (
+                "Then keep the game going without asking whether they want more: say 'Next one!' and read the next "
+                f'problem exactly: "{asked["say"]}"'
+            )
+        else:
+            done, first_try = self._round_count, self._round_first_try
+            result["round_finished"] = {"problems": done, "first_try_correct": first_try}
+            go_on = (
+                f"That was the last problem of this round: cheer that they finished {done} problems, {first_try} of "
+                "them right on the first try. Then ask whether they want another round or a short break; if they want "
+                "another round, call next_math_problem."
+            )
+        result["instructions"] = f"{wrap_up} {go_on}"
         if change > 0:
             result["level_change"] = f"They move up to level {progress.level} in {SKILLS[problem.skill].title}."
         elif change < 0:
@@ -1302,6 +1344,7 @@ class MathCoach:
             self._open = None
             self._last_activity_mono = None
             self._last_offer_mono = time.monotonic()  # wait a full interval before inviting again
+            self._round_count = self._round_first_try = self._turns_since_math = 0
             summary = {
                 speaker: {"problems": len(results), "first_try_correct": results.count("first_try")}
                 for speaker, results in self._session_results.items()
@@ -1319,8 +1362,56 @@ class MathCoach:
         return last is not None and now - last < PRACTICE_IDLE_S
 
     def connection_opened(self, now: float | None = None) -> None:
-        """Start the offer clock: the greeting at the start already invites the child to a math game."""
+        """Start the offer clock: the greeting at the start already starts a math game."""
         self._last_offer_mono = time.monotonic() if now is None else now
+
+    def greeting_with_first_problem(self, greeting: str) -> str:
+        """Open a warm-up problem and add it to the startup greeting, so that Reachy starts the game right away."""
+        asked = self.next_problem()
+        return (
+            f"{greeting}\nThen, in the same reply, start the game with this first puzzle, reading it exactly: "
+            f'"{asked["say"]}" Wait for their answer and pass it to check_math_answer.'
+        )
+
+    def note_after_user_turn(self, text: str, now: float | None = None) -> str | None:
+        """Count one thing a person said; return a system note when Reachy should steer back to math or offer it.
+
+        While practice is under way, a note is returned after the 2nd and 5th thing in a row that the
+        math tools did not handle, unless it contains a number (then it is probably an answer).
+        """
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            if not enabled():
+                return None
+            steer: str | None = None
+            turns, problem_id, speaker_id = 0, None, UNKNOWN
+            if self.practice_active(now):
+                self._turns_since_math += 1
+                turns, open_problem = self._turns_since_math, self._open
+                if turns not in STEER_AFTER_TURNS or (open_problem is not None and parse_answer(text) is not None):
+                    return None
+                if open_problem is not None:
+                    step = open_problem.step
+                    waiting = open_problem.problem.text if step is None else open_problem.problem.steps[step].ask
+                    steer = (
+                        f'Math practice: the math question "{waiting}" is still waiting. Reply to what the child just '
+                        "said in one short, friendly sentence, then bring them back to the question in a fun way, for "
+                        "example by asking it again."
+                    )
+                else:
+                    steer = (
+                        "Math practice: reply to what the child just said in one short, friendly sentence, then invite "
+                        "them to another round of math in a fun way, for example by letting them choose between two "
+                        "topics. If they clearly said they want to stop playing, call stop_math_practice instead."
+                    )
+                problem_id = None if open_problem is None else open_problem.problem_id
+                speaker_id = self._speaker()
+        if steer is None:
+            return self.offer_note_if_due(now)
+        study_log.record_event(
+            "math_steer_prompted", now, speaker_id=speaker_id, problem_id=problem_id, turns_without_math=turns
+        )
+        return steer
 
     def offer_note_if_due(self, now: float | None = None) -> str | None:
         """Return a system note asking Reachy to offer practice if it is time, else None."""
@@ -1337,8 +1428,9 @@ class MathCoach:
         study_log.record_event("math_offer_prompted", now, speaker_id=speaker_id)
         who = name or "the person you are talking with"
         return (
-            f"Math practice: when there is a natural pause, ask {who} if they want to play a quick math game. "
-            "If they say no, let it go and keep chatting. If they say yes, call next_math_problem."
+            f"Math practice: when there is a natural pause, invite {who} back to the math game in a fun way, for "
+            "example by offering two topics to choose from. If they say no, let it go and keep chatting. If they say "
+            "yes, call next_math_problem."
         )
 
 

@@ -165,6 +165,13 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
         self._startup_greeting_sent = False
         self._in_flight_tool_calls: set[str] = set()
         self._tool_batch_needs_response = False
+        # A reply the app requested after tool results ("follow-up") should be spoken. When the model
+        # answers a tool result with only a movement (for example play_emotion, which asks for no
+        # follow-up), the app asks once more so that Reachy does not fall silent.
+        self._followup_requested = False
+        self._followup_active = False
+        self._followup_spoke = False
+        self._silent_followup_retried = False
 
         # Study data: transcripts with timing, audio clips, voice ID, and events.
         self.study = StudyRecorder(notify_model=self._send_system_note)
@@ -459,11 +466,11 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
         self._mark_activity("say")
         await self._safe_response_create()
 
-    async def _maybe_offer_math(self) -> None:
-        """Ask Reachy to offer math practice when the conversation has gone on long enough."""
+    async def _maybe_send_math_note(self, transcript: str) -> None:
+        """After something a person said, tell Reachy to steer back to math, or to offer it, when it is time."""
         if "next_math_problem" not in core_tools.get_tools():
             return
-        note = math_practice.coach().offer_note_if_due()
+        note = math_practice.coach().note_after_user_turn(transcript)
         if note is not None:
             await self._send_system_note(note)
 
@@ -491,6 +498,8 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
         if not greeting_prompt:
             self._startup_greeting_sent = True
             return
+        if math_practice.enabled() and "next_math_problem" in core_tools.get_tools():
+            greeting_prompt = math_practice.coach().greeting_with_first_problem(greeting_prompt)
 
         try:
             await self.connection.conversation.item.create(
@@ -713,12 +722,22 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
 
             tool = core_tools.get_tools().get(completed_tool.tool_name)
             # Always surface errors, skip the spoken follow-up for tools that opt out.
-            if model_result_submitted and (completed_tool.error is not None or tool is None or tool.needs_response):
+            needs_response = completed_tool.error is not None or tool is None or tool.needs_response
+            silent_followup = self._followup_active and not self._followup_spoke and not self._silent_followup_retried
+            if model_result_submitted and not needs_response and silent_followup:
+                logger.info(
+                    "Tool '%s' was the whole reply to a tool result; asking the model to speak",
+                    completed_tool.tool_name,
+                )
+                self._silent_followup_retried = True
+                needs_response = True
+            if model_result_submitted and needs_response:
                 self._tool_batch_needs_response = True
 
             # Parallel tool calls in one turn: respond once every result is in, not per tool.
             if self._tool_batch_needs_response and not self._in_flight_tool_calls:
                 self._tool_batch_needs_response = False
+                self._followup_requested = True
                 await self._safe_response_create()
 
         except ConnectionClosedError:
@@ -808,6 +827,10 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
 
                     if event.type == "response.created":
                         self.study.response_created()
+                        self._followup_active, self._followup_requested = self._followup_requested, False
+                        self._followup_spoke = False
+                        if not self._followup_active:
+                            self._silent_followup_retried = False
                         self._mark_activity("response_created")
                         self.deps.movement_manager.set_speaking(True)
                         self._response_done_event.clear()
@@ -869,7 +892,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
 
                         await self.output_queue.put(AdditionalOutputs({"role": "user", "content": transcript}))
                         self.study.user_transcript(str(getattr(event, "item_id", "") or ""), transcript)
-                        await self._maybe_offer_math()
+                        await self._maybe_send_math_note(transcript)
                         self._emit_transcript("user", transcript, True)
 
                     # Handle assistant transcription
@@ -884,6 +907,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
 
                     # Handle audio delta
                     if event.type == "response.output_audio.delta":
+                        self._followup_spoke = True
                         decoded_pcm_bytes = base64.b64decode(event.delta)
                         decoded_pcm = np.frombuffer(decoded_pcm_bytes, dtype=np.int16).reshape(1, -1)
                         self.study.assistant_audio(decoded_pcm.size, self.SAMPLE_RATE)

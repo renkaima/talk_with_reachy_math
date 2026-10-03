@@ -24,9 +24,7 @@ The app is built on **[Talk with Reachy](https://github.com/renkaima/talk_with_r
 
 An example; Reachy's exact wording varies.
 
-> **Reachy:** Hi! I'm Reachy, a little robot who loves math games. Want to play a quick one with me?<br>
-> **Child:** Sure!<br>
-> **Reachy:** What is 75 times 9?<br>
+> **Reachy:** Hi! I'm Reachy, a little robot who loves math games, and I have a puzzle for you. What is 75 times 9?<br>
 > **Child:** Probably around seven hundred?<br>
 > **Reachy:** Great estimate, that's really close! Let's break 75 into 70 and 5. What is 70 times 9?<br>
 > **Child:** 630.<br>
@@ -34,13 +32,16 @@ An example; Reachy's exact wording varies.
 > **Child:** 45.<br>
 > **Reachy:** Last step: what is 630 plus 45?<br>
 > **Child:** 675!<br>
-> **Reachy:** You worked it out step by step: 75 times 9 is 675. Want another one?
+> **Reachy:** You worked it out step by step: 75 times 9 is 675! Next one: what is 64 times 3?<br>
+> **Child:** Wait, do you like dogs?<br>
+> **Reachy:** I love dogs, especially fluffy ones! Now, back to our puzzle: what is 64 times 3?
 
 ## What the app does
 
 **For the child**
 
-- Reachy opens by asking whether they want to play a quick math game. If they say no, Reachy just chats and asks again a few minutes later.
+- Reachy starts the game right away: its hello ends with a first puzzle. Problems then come one after another in rounds of five, and after each round Reachy offers another round or a break.
+- If the child talks about something else, Reachy answers briefly and brings them back to the puzzle. If the child finds it boring, Reachy switches to another topic or a challenge instead of stopping. It stops only when the child clearly says so, and invites them back a few minutes later.
 - Reachy talks like a friendly coach for a 10-year-old: short sentences, everyday words, and praise for effort. It never says "wrong"; it says "Not quite yet".
 - When an answer is not right, or the child says "I don't know", Reachy breaks the problem into small helper questions instead of giving the answer.
 - Problems get harder or easier as the child goes, separately for each topic and each child.
@@ -61,7 +62,7 @@ An example; Reachy's exact wording varies.
 2. **The child answers aloud.** The speech service turns the answer into text, and the language model passes the child's exact words to the app's math coach.
 3. **The math coach reads the number** from those words: digits, number words ("seventy-two"), decimals, fractions ("three fourths"), mixed numbers, and negatives.
 4. **The coach compares it with the stored answer and decides what comes next.** A right answer gets praise. An answer that is not right yet gets a small helper question, and a guess within 10 percent is praised as a good estimate. After the last helper question, Reachy says the whole answer, and explains it if the child's last answer was not right either.
-5. **The coach records the result.** It writes every answer to the study log and, when a problem is finished, updates the child's level for that topic. The language model then says what the coach decided, in a child's words.
+5. **The coach records the result and keeps the game going.** It writes every answer to the study log and, when a problem is finished, updates the child's level for that topic and hands over the next problem of the round. The language model then says what the coach decided, in a child's words, and reads the next problem.
 
 ## Math topics and levels
 
@@ -115,7 +116,7 @@ talk_with_reachy_math_data/
 └── people/<speaker ID>/math_progress.json       the child's level in each topic
 ```
 
-The math events are `math_problem` (the problem, its topic and level, and the answer), `math_answer` (what the child said, the number read from it, whether it was right, and which helper question it answered), `math_level_change`, and `math_practice_stopped`. One answer looks like this (one line in the file, spread out here):
+The math events are `math_problem` (the problem, its topic and level, the answer, and its place in the round), `math_answer` (what the child said, the number read from it, whether it was right, and which helper question it answered), `math_level_change`, and `math_practice_stopped`. One answer looks like this (one line in the file, spread out here):
 
 ```json
 {

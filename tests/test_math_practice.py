@@ -223,13 +223,12 @@ def test_a_wrong_answer_leads_to_small_helper_questions(study_dir: Path) -> None
         assert nxt["correct"] is True and nxt["helper_question"] == steps[i].ask and "answer" not in nxt
     done = coach.check_answer(_step_answer(coach))
     assert done["correct"] is True and done["answer"] and done["explanation"]
-    assert "step by step" in done["instructions"]
-    assert coach.check_answer("5") == {"error": "No problem is open. Call next_math_problem first."}
+    assert "step by step" in done["instructions"] and done["next_problem"]["problem_id"] == "M002"
     study_log.stop()
 
     events = [r for r in records(study_dir) if r.get("event", "").startswith("math_")]
-    assert [e["event"] for e in events] == ["math_problem"] + ["math_answer"] * (len(steps) + 1)
-    problem, a1, *_, last = events
+    assert [e["event"] for e in events] == ["math_problem"] + ["math_answer"] * (len(steps) + 1) + ["math_problem"]
+    problem, a1, *_, last, _next = events
     assert (problem["skill"], problem["level"], problem["asked_to"]) == ("multiply", 1, "unknown")
     assert (a1["attempt"], a1["step"], a1["correct"], a1["close"]) == (1, None, False, False)
     assert (last["step"], last["correct"], last["outcome"]) == (len(steps), True, "with_help")
@@ -274,7 +273,7 @@ def test_jumping_straight_to_the_answer_during_help_counts(alice: Path) -> None:
     coach.next_problem()
     coach.check_answer(_answer_for(coach, wrong=True))
     done = coach.check_answer(_answer_for(coach))
-    assert done["correct"] is True and coach._open is None
+    assert done["correct"] is True and done["next_problem"]["problem_id"] == "M002"
     assert coach._session_results == {"P01": ["with_help"]}
 
 
@@ -327,17 +326,66 @@ def test_progress_is_saved_per_child_and_levels_up(alice: Path) -> None:
     assert saved["current_skill"] == "percent" and saved["skills"]["percent"]["level"] == 2
 
     later = MathCoach(random.Random(4))
-    assert later.next_problem()["level"] == 2
+    assert later.next_problem(topic="percent")["level"] == 2
 
 
-def test_after_five_problems_practice_moves_to_the_next_topic(alice: Path) -> None:
-    """Without a requested topic, five problems on one skill are followed by the next skill."""
+def test_a_round_of_five_problems_runs_without_asking(study_dir: Path) -> None:
+    """Each finished problem brings the next one straight away; after five, the round ends and the topic moves on."""
+    study_log.start()
     coach = MathCoach(random.Random(5))
-    topics = []
-    for _ in range(6):
-        topics.append(coach.next_problem()["topic"])
+    asked = coach.next_problem()
+    assert asked["round_position"] == "1 of 5" and "round of 5 multiplication problems" in asked["instructions"]
+    results = [coach.check_answer(_answer_for(coach)) for _ in range(5)]
+    for result in results[:4]:
+        assert result["next_problem"]["say"] in result["instructions"] and "Next one!" in result["instructions"]
+        assert "want another" not in result["instructions"]
+    assert "next_problem" not in results[4] and results[4]["round_finished"] == {"problems": 5, "first_try_correct": 5}
+    assert "another round or a short break" in results[4]["instructions"] and coach._open is None
+    assert coach.next_problem()["topic"] == "division"
+    study_log.stop()
+    problems = [r for r in records(study_dir) if r.get("event") == "math_problem"]
+    assert [(p["round"], p["position"]) for p in problems] == [(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (2, 1)]
+
+
+def test_the_greeting_starts_the_game_with_a_problem() -> None:
+    """At the start, the app opens a warm-up problem and puts it into Reachy's greeting."""
+    coach = MathCoach(random.Random(10))
+    greeting = coach.greeting_with_first_problem("Say hi.")
+    assert coach._open is not None and greeting.startswith("Say hi.")
+    assert f'"{coach._open.problem.text}"' in greeting and "check_math_answer" in greeting
+
+
+def test_reachy_is_told_to_steer_back_when_the_child_drifts(study_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two things in a row that are not math bring a note naming the waiting question; answers and math reset it."""
+    monkeypatch.setenv(math_practice.MATH_ENV, "1")
+    study_log.start()
+    coach = MathCoach(random.Random(11))
+    asked = coach.next_problem()
+    assert coach.note_after_user_turn("Do you like dogs?") is None
+    note = coach.note_after_user_turn("I have a dog called Max.")
+    assert note is not None and note.startswith("Math practice:") and asked["say"] in note
+    assert coach.note_after_user_turn("He is brown.") is None
+    assert coach.note_after_user_turn("He likes balls.") is None
+    assert coach.note_after_user_turn("I think it's 12") is None  # a number: probably an answer, so no note
+    coach.check_answer(_answer_for(coach))  # math again: the count starts over
+    assert coach.note_after_user_turn("Cool!") is None
+    second = coach.note_after_user_turn("What's your name?")
+    assert second is not None and coach._open is not None and coach._open.problem.text in second
+    study_log.stop()
+    steer = [r for r in records(study_dir) if r.get("event") == "math_steer_prompted"]
+    assert [(r["problem_id"], r["turns_without_math"]) for r in steer] == [("M001", 2), ("M002", 2)]
+
+
+def test_between_rounds_the_note_invites_another_round(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no problem open but practice under way, the note invites another round instead."""
+    monkeypatch.setenv(math_practice.MATH_ENV, "1")
+    coach = MathCoach(random.Random(12))
+    coach.next_problem()
+    for _ in range(5):
         coach.check_answer(_answer_for(coach))
-    assert topics == ["multiplication"] * 5 + ["division"]
+    coach.note_after_user_turn("Let's take a break.")
+    note = coach.note_after_user_turn("What do robots eat?")
+    assert note is not None and "another round" in note and "stop_math_practice" in note
 
 
 def test_unidentified_children_practice_without_a_saved_file(tmp_path: Path) -> None:
@@ -356,7 +404,8 @@ def test_reachy_invites_again_three_minutes_after_the_greeting(alice: Path, monk
     coach.connection_opened(now=100.0)
     assert coach.offer_note_if_due(now=150.0) is None
     assert coach.offer_note_if_due(now=279.0) is None
-    note = coach.offer_note_if_due(now=281.0)
+    assert coach.note_after_user_turn("Hello!", now=279.0) is None
+    note = coach.note_after_user_turn("Hello!", now=281.0)  # not practicing: the turn brings the offer when due
     assert note is not None and note.startswith("Math practice:") and "Alice" in note and "math game" in note
     assert coach.offer_note_if_due(now=400.0) is None
     assert coach.offer_note_if_due(now=462.0) is not None
@@ -373,8 +422,7 @@ def test_stop_reports_each_childs_results(alice: Path) -> None:
     """Stopping returns how many problems each child did and how many were right on the first try."""
     coach = MathCoach(random.Random(8))
     coach.next_problem()
-    coach.check_answer(_answer_for(coach))
-    coach.next_problem()
+    coach.check_answer(_answer_for(coach))  # opens the next problem
     coach.check_answer(_answer_for(coach, wrong=True))
     assert coach.stop("child wants to play") == {
         "stopped": True,
@@ -395,11 +443,12 @@ def test_tools_pass_through_to_the_coach(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_the_default_profile_greets_a_child_with_a_math_game(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reachy opens by inviting the child to a math game, in a child's words."""
+    """Reachy opens with a hello that leads into a puzzle, in a child's words, and keeps the game going."""
     monkeypatch.setattr(config, "REACHY_MINI_CUSTOM_PROFILE", None)
     greeting = prompts.get_session_greeting_prompt()
-    assert "math game" in greeting and "10-year-old" in greeting
-    assert "say hi and invite them to play a quick math game" in prompts.MATH_GUIDANCE
+    assert "math games" in greeting and "puzzle" in greeting and "10-year-old" in greeting
+    assert "The app puts the first problem into your greeting" in prompts.MATH_GUIDANCE
+    assert "Do not ask whether they want another one" in prompts.MATH_GUIDANCE
 
 
 def test_prompt_explains_math_practice_only_when_it_is_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

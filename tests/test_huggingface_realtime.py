@@ -909,3 +909,80 @@ async def test_run_session_response_lifecycle_toggles_done_event(monkeypatch: An
     assert handler._response_done_event.is_set()
     handler.deps.movement_manager.set_speaking.assert_any_call(True)
     handler.deps.movement_manager.set_speaking.assert_any_call(False)
+
+
+def _movement_only(call_id: str) -> ToolNotification:
+    return ToolNotification(
+        id=call_id, tool_name="play_emotion", is_idle_tool_call=False, status=ToolState.COMPLETED, result={"ok": 1}
+    )
+
+
+@pytest.mark.asyncio
+async def test_movement_only_reply_to_a_tool_result_gets_one_spoken_follow_up(monkeypatch: Any) -> None:
+    """If the model answers a tool result with only an emotion, the app asks it once more to speak."""
+    handler = _plain_handler()
+    handler.connection = _FakeConnection()
+    no_follow_up = SimpleNamespace(needs_response=False)
+    monkeypatch.setattr(hf_mod.core_tools, "get_tools", lambda: {"play_emotion": no_follow_up})
+    create = AsyncMock()
+    monkeypatch.setattr(handler, "_safe_response_create", create)
+
+    handler._followup_active, handler._followup_spoke = True, False  # a follow-up reply that said nothing
+    await handler._handle_tool_result(_movement_only("c1"))
+    assert create.await_count == 1 and handler._followup_requested
+
+    handler._followup_active, handler._followup_spoke = True, False  # the retry was silent too: give up
+    await handler._handle_tool_result(_movement_only("c2"))
+    assert create.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_movement_after_speech_or_a_person_needs_no_follow_up(monkeypatch: Any) -> None:
+    """An emotion next to spoken words, or in a reply to a person, keeps the upstream behavior: no follow-up."""
+    handler = _plain_handler()
+    handler.connection = _FakeConnection()
+    monkeypatch.setattr(
+        hf_mod.core_tools, "get_tools", lambda: {"play_emotion": SimpleNamespace(needs_response=False)}
+    )
+    create = AsyncMock()
+    monkeypatch.setattr(handler, "_safe_response_create", create)
+
+    handler._followup_active, handler._followup_spoke = True, True
+    await handler._handle_tool_result(_movement_only("c1"))
+    handler._followup_active, handler._followup_spoke = False, False
+    await handler._handle_tool_result(_movement_only("c2"))
+    assert create.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_startup_greeting_carries_the_first_math_problem(monkeypatch: Any) -> None:
+    """With the math tools on, the greeting prompt ends with the first problem to read."""
+    handler = _plain_handler()
+    handler.connection = _FakeConnection()
+    monkeypatch.setattr(hf_mod, "get_session_greeting_prompt", lambda: "Say hi.")
+    monkeypatch.setattr(hf_mod.core_tools, "get_tools", lambda: {"next_math_problem": object()})
+    monkeypatch.setattr(hf_mod.math_practice, "enabled", lambda: True)
+    coach = MagicMock()
+    coach.greeting_with_first_problem.return_value = 'Say hi. Then read: "What is 2 times 3?"'
+    monkeypatch.setattr(hf_mod.math_practice, "coach", lambda: coach)
+    monkeypatch.setattr(handler, "_safe_response_create", AsyncMock())
+
+    await handler._send_startup_greeting_prompt()
+
+    item = handler.connection.conversation.item.create.await_args.kwargs["item"]
+    assert item["content"][0]["text"] == 'Say hi. Then read: "What is 2 times 3?"'
+    coach.greeting_with_first_problem.assert_called_once_with("Say hi.")
+
+
+@pytest.mark.asyncio
+async def test_run_session_tracks_whether_a_requested_follow_up_spoke(monkeypatch: Any) -> None:
+    """The response after a requested follow-up counts as a follow-up, and its audio marks it as spoken."""
+    delta = base64.b64encode(np.array([1, 2], dtype=np.int16).tobytes()).decode("utf-8")
+    handler = _session_handler(
+        monkeypatch, (_FakeEvent("response.created"), _FakeEvent("response.output_audio.delta", delta=delta))
+    )
+    handler._followup_requested = True
+
+    await handler._run_realtime_session()
+
+    assert handler._followup_active and handler._followup_spoke and not handler._followup_requested
