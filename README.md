@@ -11,7 +11,9 @@
   <a href="docs/LEARNING_DESIGN.md">Research behind the design</a> ·
   <a href="#what-gets-recorded">What gets recorded</a> ·
   <a href="#privacy-and-responsibility">Privacy</a> ·
-  <a href="#try-it">Try it</a>
+  <a href="#try-it">Try it</a> ·
+  <a href="#built-with">Built with</a> ·
+  <a href="#disclaimer">Disclaimer</a>
 </p>
 
 **Talk with Reachy Math** is an app for [Reachy Mini](https://github.com/pollen-robotics/reachy_mini), a small robot by Pollen Robotics. Reachy plays spoken math games with children aged about 10 to 13 (US grades 5 to 7), in English. The child picks a game: a story adventure, fixing Reachy's mistakes, number riddles, a closest guess game, or quick math. Reachy reads each problem aloud, listens to the child's answer, and, when the answer is not right yet, helps with small step-by-step questions. Every answer is checked in code, not by the language model, so Reachy never calls a wrong answer right.
@@ -175,7 +177,7 @@ Whoever installs and runs the app chooses to record, and is responsible for:
 
 To record less, set `TALK_WITH_REACHY_MATH_SAVE_AUDIO=0` (no audio clips), `TALK_WITH_REACHY_MATH_VOICE_ID=0` (no voiceprints), or `TALK_WITH_REACHY_MATH_LOGGING=0` (no study records at all); see [Settings](STUDY_SETUP.md#settings). To keep the audio on your own hardware, run your own speech service ([connection modes](docs/ORIGINAL_README.md#hugging-face-connection-modes)).
 
-The app is provided "as is", without warranty of any kind, under the [Apache 2.0 license](LICENSE).
+The app is provided "as is", without warranty of any kind; see the [Disclaimer](#disclaimer).
 
 ## Try it
 
@@ -194,10 +196,39 @@ The app is provided "as is", without warranty of any kind, under the [Apache 2.0
 - **Math can be switched off** with the setting `TALK_WITH_REACHY_MATH_PRACTICE=0`.
 - **The research behind the games is not an evaluation of this app.** The studies in [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md) tested other games, tutors, and robots, mostly on screens and with other age groups. Whether these games help children learn is a question for a study.
 
+## Built with
+
+Talk with Reachy Math adds new code (the math games, the answer checking, and the word check) to the projects below. Their authors do not maintain or endorse this app. The full list of dependencies is in [pyproject.toml](pyproject.toml) and [uv.lock](uv.lock).
+
+| Project | By | What it does in this app | License |
+|---|---|---|---|
+| [reachy_mini_conversation_app](https://github.com/pollen-robotics/reachy_mini_conversation_app) | Pollen Robotics | The app this one is a fork of: voice conversation, tools, robot movement, and the settings page | Apache 2.0 |
+| [Talk with Reachy](https://github.com/renkaima/talk_with_reachy) | Renkai Ma | Study logging, voice ID, per-person memory, and Google Drive upload | Apache 2.0 |
+| [reachy_mini](https://github.com/pollen-robotics/reachy_mini) | Pollen Robotics | Robot control and the app framework of the Reachy Mini Control app | Apache 2.0 |
+| [reachy_mini_dances_library](https://github.com/pollen-robotics/reachy_mini_dances_library) | Pollen Robotics | Dances and emotion moves | see its repository |
+| Speech service on Hugging Face | Pollen Robotics (hosted service) | Speech recognition, the language model, and speech synthesis | the service's terms |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Next-gen Kaldi team | Runs the speaker model on the device | Apache 2.0 |
+| [TitaNet-S](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/titanet_small) | NVIDIA NeMo | Voiceprints for voice ID | see NVIDIA's model card |
+| [huggingface_hub](https://github.com/huggingface/huggingface_hub) | Hugging Face | Hugging Face sign-in for the speech service, and tool Spaces | Apache 2.0 |
+| [openai-python](https://github.com/openai/openai-python) | OpenAI | Client library for the realtime connection to the speech service | Apache 2.0 |
+| [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) | Model Context Protocol | Remote tools such as web search and weather | MIT |
+| [httpx](https://github.com/encode/httpx) | Encode | HTTP requests, including the Google Drive upload | BSD 3-Clause |
+| [MSAL for Python](https://github.com/AzureAD/microsoft-authentication-library-for-python) | Microsoft | OneDrive sign-in (currently switched off) | MIT |
+| [textstat](https://github.com/textstat/textstat) | textstat contributors | The Dale-Chall word list for the word check (tests only) | MIT |
+
+The math games follow the US [Common Core State Standards for Mathematics](https://www.thecorestandards.org/Math/) for grades 5 to 7, and their design draws on the studies listed in [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md).
+
+## Disclaimer
+
+- **Research prototype, provided as is.** Talk with Reachy Math is a research tool released under the Apache 2.0 license, "as is", without warranty of any kind. The maintainer is not liable for any use of it; see sections 7 and 8 of the [license](LICENSE).
+- **Not affiliated.** This app is not affiliated with or endorsed by Pollen Robotics, Hugging Face, NVIDIA, OpenAI, Google, or the authors of any project listed above. "Reachy Mini" names the robot that the app runs on.
+- **Not a substitute for teaching.** The app is not a curriculum, a certified tutor, or an assessment of a child's ability. Its games have not been evaluated with children; the studies in [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md) tested other systems.
+- **AI can make mistakes.** The app checks every answer in code, but Reachy's spoken replies come from a language model and can still be wrong, off topic, or unsuitable, and speech recognition can mishear an answer. An adult should supervise children who use the app.
+- **Children's data.** By default the app records voices, words, and voiceprints. Whoever installs it is responsible for getting consent and for following the laws on recording children and on biometric data where it is used; see [Privacy and responsibility](#privacy-and-responsibility). A research study that uses the app needs its own ethics approval.
+- **Third-party services.** Microphone audio is streamed to a speech service on Hugging Face, and study files can be uploaded to Google Drive. The terms and privacy policies of those services apply.
+
 ## Credits and license
 
-- Built on [Talk with Reachy](https://github.com/renkaima/talk_with_reachy), which is built on Pollen Robotics' [reachy_mini_conversation_app](https://github.com/pollen-robotics/reachy_mini_conversation_app) (both Apache 2.0). The changes from Talk with Reachy are the commits after commit `624b78b`, and the changes from Pollen's app are the commits after upstream commit `5eb39ed`. This app is not affiliated with or endorsed by Pollen Robotics; "Reachy Mini" names the robot that the app runs on.
-- The word check in the tests uses the Dale-Chall list of familiar words as shipped with [textstat](https://github.com/textstat/textstat) (MIT License); it is a test-only dependency.
-- Voice ID uses NVIDIA NeMo's TitaNet-S speaker model through [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx).
 - Maintained by Renkai Ma ([@renkaima](https://github.com/renkaima)).
-- License: Apache 2.0, see [LICENSE](LICENSE).
+- The changes from Talk with Reachy are the commits after commit `624b78b`, and the changes from Pollen's app are the commits after upstream commit `5eb39ed`.
+- License: Apache 2.0, see [LICENSE](LICENSE). The projects listed under [Built with](#built-with) keep their own licenses.
