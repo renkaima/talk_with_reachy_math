@@ -8,6 +8,7 @@
   <a href="#how-reachy-checks-an-answer">How answers are checked</a> ·
   <a href="#math-topics-and-levels">Topics and levels</a> ·
   <a href="#what-gets-recorded">What gets recorded</a> ·
+  <a href="#privacy-and-responsibility">Privacy</a> ·
   <a href="#try-it">Try it</a> ·
   <a href="STUDY_SETUP.md">Study setup guide</a>
 </p>
@@ -15,6 +16,9 @@
 **Talk with Reachy Math** is an app for [Reachy Mini](https://github.com/pollen-robotics/reachy_mini), a small robot by Pollen Robotics. Reachy plays short spoken math games with children aged about 10 to 13 (US grades 5 to 7), in English. It reads each problem aloud, listens to the child's answer, and, when the answer is not right yet, helps with small step-by-step questions. Every answer is checked in code, not by the language model, so Reachy never calls a wrong answer right.
 
 The app is built on **[Talk with Reachy](https://github.com/renkaima/talk_with_reachy)**, so it also keeps a research record of each conversation: what was said, when it was said, and who said it, recognized by voice. It was built for research studies.
+
+> [!IMPORTANT]
+> **This app records.** By default it saves what everyone near the robot says, an audio clip of each utterance, and a voiceprint of each voice. It is meant for children, so a parent, teacher, or researcher should set it up and is responsible for getting consent; see [Privacy and responsibility](#privacy-and-responsibility).
 
 ## What a game sounds like
 
@@ -135,11 +139,27 @@ The math events are `math_problem` (the problem, its topic and level, and the an
 
 [STUDY_SETUP.md](STUDY_SETUP.md#math-practice) describes every field and event.
 
+## Privacy and responsibility
+
+Talk with Reachy Math is a research tool, and it records by default. For everyone who speaks near the robot, it saves the words, the times, every math answer, an audio clip of each utterance, and a voiceprint, which some laws treat as biometric data. These files stay on the device. They leave it only for the Google Drive of the person who signs the robot in to Google; the maintainer of this app never receives them. As in Pollen's app, the microphone audio is also streamed to the speech service on Hugging Face, and with this app the hidden notes also send it people's names and what Reachy remembers about them.
+
+Talk with Reachy Math is meant for children. It should be set up by a parent, teacher, or researcher, who is also responsible for any consent that recording children requires, such as a parent's consent.
+
+Whoever installs and runs the app chooses to record, and is responsible for:
+
+- telling everyone near the robot that they are being recorded, and getting their consent;
+- following the laws that apply where the robot is used, such as rules on recording conversations and on biometric data;
+- keeping the recordings safe, and deleting a person's data when they ask ([how](STUDY_SETUP.md#managing-voices)).
+
+To record less, set `TALK_WITH_REACHY_MATH_SAVE_AUDIO=0` (no audio clips), `TALK_WITH_REACHY_MATH_VOICE_ID=0` (no voiceprints), or `TALK_WITH_REACHY_MATH_LOGGING=0` (no study records at all); see [Settings](STUDY_SETUP.md#settings). To keep the audio on your own hardware, run your own speech service ([connection modes](docs/ORIGINAL_README.md#hugging-face-connection-modes)).
+
+The app is provided "as is", without warranty of any kind, under the [Apache 2.0 license](LICENSE).
+
 ## Try it
 
 **In the simulation, without a robot.** Start the simulation in the Reachy Mini Control app on a Mac, install Talk with Reachy Math, and talk through the Mac's microphone. The app writes transcripts, speaker IDs, audio clips, and math events to `~/talk_with_reachy_math_data` on the Mac. To test the Google Drive upload as well, sign the Mac in once with `bash deploy/google_dry_run.sh` ([details](STUDY_SETUP.md#5-sign-in-to-google-drive-one-time-per-device)).
 
-**On a Reachy Mini.** The installable app is a private Hugging Face Space, because it carries the app's Google sign-in secret. To get access, contact [@renkaima](https://github.com/renkaima). The app then appears in the Control app's store under *Private*. [STUDY_SETUP.md](STUDY_SETUP.md#setup-in-order) lists every setup step, from publishing the Space to enrolling children.
+**On a Reachy Mini.** Open the app store in the Reachy Mini Control app, search for *Talk with Reachy Math*, and click **Install**. The app records on the robot from the first conversation. Google Drive upload works only for Google accounts that the maintainer has added as testers, so on other robots the files stay on the device. [STUDY_SETUP.md](STUDY_SETUP.md#setup-in-order) lists every setup step for a study, from enrolling children to checking the upload.
 
 **From source, for developers.** The [developer reference](docs/ORIGINAL_README.md) covers installing from source, configuration, and command-line options; here the command is `talk-with-reachy-math`. The Google client secret is not in this repository, so a copy run from source keeps its study files on the device.
 
@@ -147,7 +167,6 @@ The math events are `math_problem` (the problem, its topic and level, and the an
 
 - **A misheard number is checked as heard.** The coach checks what the speech service transcribed. The audio clip of each answer is saved, so answers can be checked by ear.
 - **The language model decides when to call the math coach.** If it ever answers by itself instead, no `math_answer` event is logged for that problem; the transcript still shows what was said.
-- **Audio leaves the device.** As in Pollen's app, the microphone audio goes to the speech service on Hugging Face, and the hidden notes send it names and what Reachy remembers about each person. To keep audio on your own hardware, run your own speech service ([connection modes](docs/ORIGINAL_README.md#hugging-face-connection-modes)).
 - **Check voice ID before relying on it,** especially with children's voices: the voice-matching thresholds come from a check on clean recordings of six speakers and have not been validated on children's voices or in a noisy room ([details](STUDY_SETUP.md#voice-identification)).
 - **Separate from Talk with Reachy.** This app has its own data folder, Google Drive folder, Google sign-in, and voice library, and its Python package `talk_with_reachy_math` installs next to the other apps on the same robot.
 - **Math can be switched off** with the setting `TALK_WITH_REACHY_MATH_PRACTICE=0`.
