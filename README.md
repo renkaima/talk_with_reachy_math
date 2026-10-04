@@ -5,6 +5,7 @@
 <p align="center">
   <a href="#what-a-game-sounds-like">A game</a> ·
   <a href="#the-five-games">The five games</a> ·
+  <a href="#how-a-game-works">How a game works</a> ·
   <a href="#what-the-app-does">What it does</a> ·
   <a href="#how-reachy-checks-an-answer">How answers are checked</a> ·
   <a href="#math-topics-and-levels">Topics and levels</a> ·
@@ -52,6 +53,14 @@ At the start, and after every round of five problems, Reachy lets the child pick
 | **Quick math** | Plain problems, five on one topic, then the next topic. | the eight topics [below](#math-topics-and-levels) |
 
 The story and guessing games use what the child likes: Reachy can pick from seven themes (space, dogs, soccer, dinosaurs, pizza, the ocean, and video games), and the app remembers each child's theme for next time.
+
+## How a game works
+
+<p align="center">
+  <img src="docs/readme/game_round.svg" alt="Diagram of a round. 1, pick a game: Reachy offers two of the five games (story adventure, fix my mistakes, number riddles, closest guess, quick math) and the child picks one; stories and guesses use the child's saved theme. 2, five problems from that game: Reachy reads a problem made in code, the child answers aloud, the math coach checks the number, and Reachy praises a right answer and reads the next problem, or asks a small helper question; each game adds its own reply. 3, the round ends: Reachy cheers, reads the story's ending after a story, and offers two other games or a short break, which starts the next round. Along the way, Reachy brings back a child who talks about something else, and stops when the child says stop." width="100%">
+</p>
+
+A session is a series of rounds. Each round is one game the child picked, five problems long, and the next round starts with a new choice. Within a round, Reachy reads the next problem right after the last one is done, without asking whether the child wants more, and it offers a break only between rounds.
 
 ## What the app does
 
@@ -136,28 +145,51 @@ talk_with_reachy_math_data/
 ├── audio/<same name>/<seq>_<speaker ID>.wav     one clip per person utterance
 ├── people/library.json                          voiceprints of all known voices
 ├── people/<speaker ID>/memory.v1.json           what Reachy remembers about each child
-└── people/<speaker ID>/math_progress.json       the child's level in each topic
+└── people/<speaker ID>/math_progress.json       the child's levels and favorite theme
 ```
 
-The math events are `math_problem` (the game and theme, the problem, its topic and level, the answer, Reachy's own wrong answer or guess, and its place in the round), `math_answer` (what the child said, the number read from it, whether it was right, which helper question it answered, and, depending on the game, the clue a riddle guess broke or who won a closest guess), `math_level_change`, and `math_practice_stopped`. One answer looks like this (one line in the file, spread out here):
+The math events are `math_problem` (the game and theme, the problem, its topic and level, the answer, Reachy's own wrong answer or guess, and its place in the round), `math_answer` (what the child said, the number read from it, whether it was right, which helper question it answered, and, depending on the game, the clue a riddle guess broke or who won a closest guess), `math_level_change`, and `math_practice_stopped`. A problem from the closest guess game and the child's answer look like this (each is one line in the file, spread out here):
 
 ```json
+{
+  "session_id": "9f2c…",
+  "type": "event",
+  "event": "math_problem",
+  "time": "2026-10-03 10:15:36.002-04:00",
+  "elapsed_s": 35.191,
+  "problem_id": "M006",
+  "asked_to": "P01",
+  "game": "closest_guess",
+  "theme": "space",
+  "skill": "closest_guess",
+  "level": 1,
+  "standards": "4.OA.3, 5.NBT.5",
+  "text": "6 boxes have 49 moon rocks in each. About how many moon rocks is that? Just guess, then I will guess too.",
+  "answer": "294",
+  "reachy_answer": "370",
+  "source": "generated",
+  "round": 2,
+  "position": 1
+}
 {
   "session_id": "9f2c…",
   "type": "event",
   "event": "math_answer",
   "time": "2026-10-03 10:15:42.118-04:00",
   "elapsed_s": 41.307,
-  "problem_id": "M001",
+  "problem_id": "M006",
   "answered_by": "P01",
   "asked_to": "P01",
-  "heard": "Probably around seven hundred?",
-  "parsed": "700",
+  "heard": "Maybe three hundred?",
+  "parsed": "300",
   "step": null,
-  "seconds_since_asked": 6.2,
+  "seconds_since_asked": 6.1,
   "attempt": 1,
+  "reachy_guess": "370",
+  "winner": "child",
   "close": true,
-  "correct": false
+  "correct": true,
+  "outcome": "first_try"
 }
 ```
 
