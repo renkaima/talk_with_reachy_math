@@ -9,16 +9,21 @@ child picks one of two games; ``math_games`` builds the problems of the story, m
 riddle, and guessing games, and this module builds the quick math problems (one topic at
 a time) and runs the rounds.
 
-When a child's first answer is not right (or they say they don't know), Reachy does not
-give a hint in one long sentence. It asks the problem's helper steps instead: small
+The first time a child plays a game, Reachy reads its rules before the first problem; later
+rounds of the same game get a one-line reminder. After each problem, Reachy asks whether the
+child is ready, and the next problem is opened only when the model asks for it.
+
+When a child's first answer is not right (or they say they don't know), Reachy asks them to
+think again, without a hint. After a second answer that is not right, or as soon as the child
+asks for help, Reachy asks the problem's helper steps instead of giving a long hint: small
 questions such as "What is 70 times 9?", one at a time, each checked here too.
 
 Each child has a level from 1 to 3 per skill (and per game for riddles and guessing), kept
 in ``people/<speaker_id>/math_progress.json`` and found through voice ID. Levels follow a
 fixed rule: three problems in a row answered correctly on the first try move the child up
 one level; two problems in a row in which Reachy had to give away an answer (of a helper
-step or of the problem) move them down one level. A problem solved with help, every helper
-step answered right, leaves the level alone and resets both counts.
+step or of the problem) move them down one level. A problem solved on the second try, or with
+help with every helper step answered right, leaves the level alone and resets both counts.
 
 Every problem, answer, and level change is written to the study log as an event.
 """
@@ -67,10 +72,11 @@ STORY, FIX_MY_MISTAKE, RIDDLES, CLOSEST_GUESS, QUICK_MATH = (
 GAMES = (STORY, FIX_MY_MISTAKE, RIDDLES, CLOSEST_GUESS, QUICK_MATH)  # also the order in which they are offered
 STEER_AFTER_TURNS = (2, 5)  # turns in a row without math after which Reachy is told to steer back
 CLOSE_ENOUGH = Fraction(1, 10)  # a first answer this close (relative) is praised as a good estimate
-# Words that mean "I need help" when a child says no number; anything else is asked again.
-_ASKS_FOR_HELP = re.compile(
-    r"\b(don'?t know|dunno|no idea|not sure|help|hint|hard|stuck|give up|confus\w*)\b", re.IGNORECASE
-)
+# Words that mean "I need help" or "I'm stuck" when a child says no number; anything else is asked
+# again. A child who asks for a hint gets a helper question right away; a child who only says they
+# are stuck is first given time to think (docs/LEARNING_DESIGN.md, section 7, explains why).
+_ASKS_FOR_HELP = re.compile(r"\b(help|hint|give up)\b", re.IGNORECASE)
+_FEELS_STUCK = re.compile(r"\b(don'?t know|dunno|no idea|not sure|hard|stuck|confus\w*)\b", re.IGNORECASE)
 
 
 def enabled() -> bool:
@@ -1005,6 +1011,7 @@ class Learner:
     current_skill: str = next(iter(SKILLS))
     problems_in_skill: int = 0
     theme: str = ""  # what the child likes, for stories and guessing games, such as "dogs"
+    games_explained: list[str] = field(default_factory=list)  # games whose rules Reachy has told this child
 
     def skill(self, name: str) -> SkillProgress:
         """Progress for ``name``, created at level 1 on first use."""
@@ -1017,6 +1024,7 @@ class Learner:
             "current_skill": self.current_skill,
             "problems_in_skill": self.problems_in_skill,
             "theme": self.theme,
+            "games_explained": self.games_explained,
             "skills": {name: asdict(p) for name, p in self.skills.items()},
         }
 
@@ -1028,6 +1036,7 @@ class Learner:
             learner.current_skill = str(data["current_skill"])
             learner.problems_in_skill = int(data.get("problems_in_skill", 0))
         learner.theme = str(data.get("theme") or "")
+        learner.games_explained = [g for g in data.get("games_explained") or [] if g in GAMES]
         known = set(SkillProgress.__dataclass_fields__)
         for name, values in dict(data.get("skills", {})).items():
             if (name in SKILLS or name in GAME_LEVELS) and isinstance(values, dict):
@@ -1035,11 +1044,22 @@ class Learner:
         return learner
 
 
+def _pick_skill(learner: Learner, topic: str | None) -> None:
+    """Switch quick math to ``topic`` if one is asked for, or to the next topic after a few problems."""
+    if topic in SKILLS and topic != learner.current_skill:
+        learner.current_skill, learner.problems_in_skill = str(topic), 0
+    elif topic not in SKILLS and learner.problems_in_skill >= PROBLEMS_PER_SKILL:
+        names = list(SKILLS)
+        learner.current_skill = names[(names.index(learner.current_skill) + 1) % len(names)]
+        learner.problems_in_skill = 0
+
+
 def record_result(progress: SkillProgress, outcome: str) -> int:
     """Apply the level rule to one finished problem; return the level change (-1, 0, or 1).
 
-    ``outcome`` is ``first_try`` (right on the first try), ``with_help`` (solved through the
-    helper steps, every one answered right), or ``missed`` (Reachy had to give away an answer).
+    ``outcome`` is ``first_try`` (right on the first try), ``second_try`` (right on the second
+    try, before any helper step), ``with_help`` (solved through the helper steps, every one
+    answered right), or ``missed`` (Reachy had to give away an answer).
     """
     progress.problems += 1
     if outcome == "first_try":
@@ -1101,6 +1121,7 @@ class MathCoach:
         self._game: str | None = None  # the game of the round under way; None between rounds
         self._theme = ""  # what the story or guessing game of this round is about
         self._round_start = 0  # random number picked at the start of a round, so rounds differ
+        self._explained_this_round = False  # Reachy told the rules of this round's game before its first problem
         self._offer_index = self._rng.randrange(len(GAMES))
         self._offered = self._next_offer()  # the two games Reachy lets the child pick from next
 
@@ -1148,8 +1169,10 @@ class MathCoach:
         """Open the next problem for whoever is speaking now.
 
         A new round starts when none is under way, the last one is over, or the child picks
-        another game. ``topic`` means quick math on that topic; ``theme`` is saved as what the
-        child likes and is used by stories and guessing games from now on.
+        another game. If the child has not played that game before, Reachy first gets its
+        rules instead of a problem, and the next call opens the first problem. ``topic`` means
+        quick math on that topic; ``theme`` is saved as what the child likes and is used by
+        stories and guessing games from now on.
         """
         from talk_with_reachy_math import math_games
 
@@ -1169,11 +1192,51 @@ class MathCoach:
             ):
                 self._rounds += 1
                 self._round_count = self._round_first_try = 0
-                self._game = new_game or self._offered[0]
+                self._game = new_game or self._game or self._offered[0]  # after a long pause, the same game again
                 self._round_start = self._rng.randrange(1000)
+                self._explained_this_round = False
                 themes = list(math_games.THEMES)
                 self._theme = learner.theme if learner.theme in themes else self._rng.choice(themes)
+                if self._game not in learner.games_explained:
+                    return self._explain(learner, topic)
             return self._open_next(topic)
+
+    def _explain(self, learner: Learner, topic: str | None) -> dict[str, Any]:
+        """Give Reachy the rules of the round's game, before its first problem. Caller holds the lock."""
+        from talk_with_reachy_math import math_games
+
+        game = self._game or QUICK_MATH
+        if game == QUICK_MATH:
+            _pick_skill(learner, topic)  # so the first problem, asked by the next call, has the topic named here
+        if self._open is not None:  # the child switched games in the middle of a problem
+            study_log.record_event(
+                "math_problem_skipped", problem_id=self._open.problem_id, attempts=self._open.attempts
+            )
+            self._open = None
+        learner.games_explained.append(game)
+        self._save(learner)
+        self._explained_this_round = True
+        self._last_activity_mono = time.monotonic()
+        self._turns_since_math = 0
+        study_log.record_event("math_game_explained", speaker_id=learner.speaker_id, game=game, round=self._rounds)
+        return {
+            "game": math_games.TITLES[game],
+            "how_to_play": math_games.HOW_TO_PLAY[game],
+            "instructions": f"{self._round_start_note(game, learner)}; say so in a few fun words. Then read the "
+            "'how_to_play' text exactly. Then ask if they are ready, and wait. When they say they are ready, call "
+            "next_math_problem to get the first problem. If they ask how to play, read 'how_to_play' again.",
+        }
+
+    def _round_start_note(self, game: str, learner: Learner) -> str:
+        """Tell Reachy what kind of round starts now. Caller holds the lock."""
+        title = SKILLS[learner.current_skill].title
+        return {
+            QUICK_MATH: f"This starts a round of {ROUND_SIZE} {title} problems",
+            STORY: f"This starts a story adventure in {ROUND_SIZE} parts",
+            FIX_MY_MISTAKE: f"This starts a round of {ROUND_SIZE} of your mistakes, and you need their help",
+            RIDDLES: f"This starts a round of {ROUND_SIZE} number riddles",
+            CLOSEST_GUESS: f"This starts a closest guess game of {ROUND_SIZE} questions, and the closer guess wins",
+        }[game]
 
     def _open_next(self, topic: str | None) -> dict[str, Any]:
         """Pick, open, and log a problem of the round's game; return what Reachy needs to ask it. Caller holds the lock."""
@@ -1183,12 +1246,7 @@ class MathCoach:
         learner = self._learner(speaker_id)
         game = self._game or QUICK_MATH
         if game == QUICK_MATH:
-            if topic in SKILLS and topic != learner.current_skill:
-                learner.current_skill, learner.problems_in_skill = str(topic), 0
-            elif topic not in SKILLS and learner.problems_in_skill >= PROBLEMS_PER_SKILL:
-                names = list(SKILLS)
-                learner.current_skill = names[(names.index(learner.current_skill) + 1) % len(names)]
-                learner.problems_in_skill = 0
+            _pick_skill(learner, topic)
             skill = SKILLS[learner.current_skill]
             problem = skill.generate(learner.skill(skill.name).level, self._rng)
             learner.problems_in_skill += 1
@@ -1243,25 +1301,26 @@ class MathCoach:
         }.get(game)
         if game_note:
             instructions += f" {game_note}"
-        if self._round_count == 1:
-            title = topic_skill.title if topic_skill else ""
-            round_start = {
-                QUICK_MATH: f"This starts a round of {ROUND_SIZE} {title} problems",
-                STORY: f"This starts a story adventure in {ROUND_SIZE} parts",
-                FIX_MY_MISTAKE: f"This starts a round of {ROUND_SIZE} of your mistakes, and you need their help",
-                RIDDLES: f"This starts a round of {ROUND_SIZE} number riddles",
-                CLOSEST_GUESS: f"This starts a closest guess game of {ROUND_SIZE} questions, and the closer guess wins",
-            }[game]
-            instructions = f"{round_start}; say so in a few fun words. {instructions}"
-        return {
+        result: dict[str, Any] = {
             "problem_id": problem_id,
             "say": problem.text,
             "game": math_games.TITLES[game],
             "topic": topic_skill.title if topic_skill else math_games.TITLES[game],
             "level": problem.level,
             "round_position": f"{self._round_count} of {ROUND_SIZE}",
-            "instructions": instructions,
         }
+        if self._round_count == 1 and self._explained_this_round and game == QUICK_MATH and topic in SKILLS:
+            instructions = f"This round is about {SKILLS[learner.current_skill].title} now; say so. {instructions}"
+        if self._round_count == 1 and not self._explained_this_round:
+            # The child has played this game before: one line about it instead of the rules.
+            result["reminder"] = math_games.REMINDERS[game]
+            result["how_to_play"] = math_games.HOW_TO_PLAY[game]
+            instructions = (
+                f"{self._round_start_note(game, learner)}; say so in a few fun words, then say the 'reminder' text. "
+                f"{instructions} If they ask how to play, read 'how_to_play' exactly."
+            )
+        result["instructions"] = instructions
+        return result
 
     def check_answer(self, child_answer: str) -> dict[str, Any]:
         """Check what the child said against the open problem or helper step, and say what Reachy does next."""
@@ -1290,7 +1349,9 @@ class MathCoach:
                 open_problem.attempts += 1
                 fields["attempt"] = open_problem.attempts
                 return self._finish_guess(open_problem, speaker_id, heard, now, fields)
-            if heard is None and (problem.game == CLOSEST_GUESS or not _ASKS_FOR_HELP.search(child_answer)):
+            asks_for_help = heard is None and _ASKS_FOR_HELP.search(child_answer) is not None
+            feels_stuck = heard is None and _FEELS_STUCK.search(child_answer) is not None
+            if heard is None and (problem.game == CLOSEST_GUESS or not (asks_for_help or feels_stuck)):
                 study_log.record_event("math_answer", now, **fields, attempt=None, correct=None)
                 ask_again = {
                     CLOSEST_GUESS: "You did not hear a number. Kindly ask for their best guess as a number; any guess "
@@ -1310,9 +1371,10 @@ class MathCoach:
             open_problem.attempts += 1
             fields["attempt"] = open_problem.attempts
             if heard is not None and answer_matches(heard, problem.answer):
-                outcome = (
-                    "first_try" if open_problem.step is None else "missed" if open_problem.gave_away else "with_help"
-                )
+                if open_problem.step is None:
+                    outcome = "first_try" if open_problem.attempts == 1 else "second_try"
+                else:
+                    outcome = "missed" if open_problem.gave_away else "with_help"
                 return self._finish(open_problem, speaker_id, outcome, True, now, fields)
             if open_problem.step is None:
                 close = (
@@ -1327,9 +1389,11 @@ class MathCoach:
                 )
                 if miss:
                     fields["clue_missed"] = miss
+                if open_problem.attempts == 1 and not asks_for_help:
+                    return self._try_again(open_problem, heard, close, miss, now, fields)
                 if not problem.steps:
                     return self._finish(open_problem, speaker_id, "missed", False, now, fields)
-                study_log.record_event("math_answer", now, **fields, correct=False)
+                study_log.record_event("math_answer", now, **fields, correct=False, reply="helper_question")
                 open_problem.step = 0
                 if problem.game == FIX_MY_MISTAKE and heard is not None and heard == problem.reachy_answer:
                     opener = "Say happily that you got that answer too, so let's check it together."
@@ -1374,6 +1438,52 @@ class MathCoach:
                 f"{follow}",
             }
 
+    @staticmethod
+    def _try_again(
+        open_problem: OpenProblem,
+        heard: Fraction | None,
+        close: bool,
+        miss: str | None,
+        now: float,
+        fields: dict[str, Any],
+    ) -> dict[str, Any]:
+        """After a first answer that is not right, give the child time to think again, without a hint yet.
+
+        The helper questions start after a second answer that is not right, or when the child asks for help.
+        Caller holds the lock.
+        """
+        problem = open_problem.problem
+        study_log.record_event("math_answer", now, **fields, correct=False, reply="try_again")
+        if problem.game == FIX_MY_MISTAKE and heard is not None and heard == problem.reachy_answer:
+            opener = (
+                "Say happily that you got that answer too, but you think one of your steps has a mistake. Ask them "
+                "to check your work again and find the real answer."
+            )
+        elif close:
+            opener = (
+                "Their answer is really close: tell them it was a great estimate, and ask them to check it once more."
+            )
+        elif heard is None:
+            opener = (
+                "Tell them that's okay, it's a tricky one. Tell them to take their time and think, and that they can "
+                "say 'help' for a hint."
+            )
+        elif miss:
+            opener = f'Say "Not quite yet", then say: "{miss}" Ask them to try another number that fits every clue.'
+        else:
+            opener = (
+                "Say 'Not quite yet' or 'Good try' warmly; never say 'wrong'. Ask them to take their time, think "
+                "again, and try once more."
+            )
+        result: dict[str, Any] = {"correct": False, "close": close, "try_again": True, "problem": problem.text}
+        if miss:
+            result["clue_missed"] = miss
+        result["instructions"] = (
+            f"{opener} Do not give a hint and do not say the answer. If they ask to hear the problem again, read "
+            "'problem' exactly. Then wait for their answer and pass it to check_math_answer."
+        )
+        return result
+
     def _finish_guess(
         self, open_problem: OpenProblem, speaker_id: str, guess: Fraction, now: float, fields: dict[str, Any]
     ) -> dict[str, Any]:
@@ -1414,7 +1524,7 @@ class MathCoach:
         fields: dict[str, Any],
         wrap_up: str | None = None,
     ) -> dict[str, Any]:
-        """Close the problem, update the child's level, and give Reachy the next problem. Caller holds the lock."""
+        """Close the problem, update the child's level, and tell Reachy what to say next. Caller holds the lock."""
         from talk_with_reachy_math import math_games
 
         problem = open_problem.problem
@@ -1439,13 +1549,16 @@ class MathCoach:
         if outcome == "first_try":
             self._round_first_try += 1
         fixed = problem.game == FIX_MY_MISTAKE
-        if wrap_up is None and outcome == "first_try":
+        on_their_own = outcome in ("first_try", "second_try")  # right without helper questions
+        if wrap_up is None and on_their_own:
             wrap_up = (
                 "Thank them for fixing your mistake, in a few happy words. Then ask them: 'What did I do wrong?' and "
                 "stop to let them answer. Their answer to that is not a math answer, so do not pass it to "
                 "check_math_answer. When they have answered, thank them."
                 if fixed
                 else "Praise them out loud in a few specific words."
+                if outcome == "first_try"
+                else "Praise them out loud for thinking again and getting it, in a few specific words."
             )
         elif wrap_up is None and correct:
             result["explanation"] = problem.explanation
@@ -1460,17 +1573,15 @@ class MathCoach:
                 f"Kindly tell them the answer is {problem.answer_text}, then explain it with the explanation in two "
                 "or three short, simple sentences. Praise their effort; tricky ones help their brain grow."
             )
-        then = "Then" if not fixed or outcome != "first_try" else "After you thank them,"
+        then = "After you thank them," if fixed and on_their_own else "Then"
         if self._round_count < ROUND_SIZE:
-            asked = self._open_next(None)
-            result["next_problem"] = {key: asked[key] for key in ("problem_id", "say", "topic", "level")}
-            if problem.game == STORY:
-                go_on = f'{then} go on with the story: read the next part exactly: "{asked["say"]}"'
-            else:
-                go_on = (
-                    f"{then} keep the game going without asking whether they want more: say 'Next one!' and read the "
-                    f'next problem exactly: "{asked["say"]}"'
-                )
+            # The next problem waits until the child says they are ready, so they have time to take in the answer.
+            result["round_position"] = f"{self._round_count} of {ROUND_SIZE} done"
+            what = "the next part of the story" if problem.game == STORY else "the next one"
+            go_on = (
+                f"{then} ask if they are ready for {what}, in a few words, and wait. When they say they are ready, "
+                "call next_math_problem. If they want another game instead, call next_math_problem with that game."
+            )
         else:
             done, first_try = self._round_count, self._round_first_try
             result["round_finished"] = {"problems": done, "first_try_correct": first_try}
@@ -1579,6 +1690,11 @@ class MathCoach:
                 turns, open_problem = self._turns_since_math, self._open
                 if turns not in STEER_AFTER_TURNS or (open_problem is not None and parse_answer(text) is not None):
                     return None
+                between_problems = open_problem is None and self._game is not None and self._round_count < ROUND_SIZE
+                if between_problems and turns < STEER_AFTER_TURNS[-1]:
+                    # Between two problems the child may still be telling what Reachy did wrong, or asking
+                    # how to play, before saying they are ready; only a longer drift gets a note.
+                    return None
                 if open_problem is not None:
                     step = open_problem.step
                     waiting = open_problem.problem.text if step is None else open_problem.problem.steps[step].ask
@@ -1586,6 +1702,13 @@ class MathCoach:
                         f'Math practice: the math question "{waiting}" is still waiting. Reply to what the child just '
                         "said in one short, friendly sentence, then bring them back to the question in a fun way, for "
                         "example by asking it again."
+                    )
+                elif self._game is not None and self._round_count < ROUND_SIZE:
+                    steer = (
+                        "Math practice: reply to what the child just said in one short, friendly sentence, then ask if "
+                        "they are ready for the next math problem. When they say they are ready, call "
+                        "next_math_problem. If they clearly said they want to stop playing, call stop_math_practice "
+                        "instead."
                     )
                 else:
                     steer = (

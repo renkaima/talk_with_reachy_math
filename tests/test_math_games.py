@@ -4,6 +4,7 @@ import json
 import random
 import asyncio
 from types import SimpleNamespace
+from typing import Any
 from pathlib import Path
 from fractions import Fraction as F
 
@@ -113,6 +114,15 @@ def test_closest_guess_numbers_are_near_round_ones() -> None:
 # Playing the games with the coach
 
 
+def _start(coach: MathCoach, **kwargs: Any) -> dict[str, Any]:
+    """Start a round; the first time a child plays a game, Reachy tells the rules before the first problem."""
+    asked = coach.next_problem(**kwargs)
+    if "problem_id" not in asked:
+        assert asked["how_to_play"] and coach._open is None
+        asked = coach.next_problem()
+    return asked
+
+
 def _right(coach: MathCoach) -> str:
     assert coach._open is not None
     return math_practice.say_number(coach._open.problem.answer)
@@ -122,11 +132,17 @@ def test_a_story_round_goes_on_part_by_part_and_ends_the_story(study_dir: Path) 
     """The story is read part after part, then the ending is read and the child picks the next game."""
     study_log.start()
     coach = MathCoach(random.Random(1))
-    asked = coach.next_problem(game=STORY, theme="dinosaurs")
-    assert asked["game"] == "a story adventure" and "story adventure in 5 parts" in asked["instructions"]
+    rules = coach.next_problem(game=STORY, theme="dinosaurs")
+    assert rules["game"] == "a story adventure" and "story adventure in 5 parts" in rules["instructions"]
+    assert rules["how_to_play"] == math_games.HOW_TO_PLAY[STORY]
+    asked = coach.next_problem()
     assert asked["say"].startswith("We are going to look for dinosaur eggs!")
-    results = [coach.check_answer(_right(coach)) for _ in range(5)]
-    assert all("go on with the story" in r["instructions"] for r in results[:4])
+    results = []
+    for position in range(5):
+        if position:
+            coach.next_problem()  # the child says they are ready
+        results.append(coach.check_answer(_right(coach)))
+    assert all("ready for the next part of the story" in r["instructions"] for r in results[:4])
     end = results[4]
     assert end["story_end"] == math_games.THEMES["dinosaurs"].end and end["story_end"] in end["instructions"]
     assert "pick the next game" in end["instructions"] and coach._game is None
@@ -140,20 +156,22 @@ def test_fixing_reachys_mistake(study_dir: Path) -> None:
     """Saying Reachy's own wrong answer starts the check together; a right fix leads to 'What did I do wrong?'."""
     study_log.start()
     coach = MathCoach(random.Random(2))
-    coach.next_problem(game=FIX_MY_MISTAKE)
+    _start(coach, game=FIX_MY_MISTAKE)
     assert coach._open is not None
     problem = coach._open.problem
     no = coach.check_answer("No, that's not right!")
     assert no["heard_a_number"] is False and "real answer" in no["instructions"]
     assert problem.reachy_answer is not None
     same = coach.check_answer(math_practice.say_number(problem.reachy_answer))
-    assert "got that answer too" in same["instructions"] and same["helper_question"] == problem.steps[0].ask
+    assert "got that answer too" in same["instructions"] and same["try_again"] is True
+    together = coach.check_answer(math_practice.say_number(problem.reachy_answer))
+    assert "got that answer too" in together["instructions"] and together["helper_question"] == problem.steps[0].ask
     coach.stop("test")
-    coach.next_problem(game=FIX_MY_MISTAKE)
+    _start(coach, game=FIX_MY_MISTAKE)
     fixed = coach.check_answer(_right(coach))
     assert (
         "What did I do wrong?" in fixed["instructions"]
-        and "After you thank them, keep the game going" in fixed["instructions"]
+        and "After you thank them, ask if they are ready" in fixed["instructions"]
     )
     study_log.stop()
     asked = [r for r in records(study_dir) if r.get("event") == "math_problem"]
@@ -161,16 +179,18 @@ def test_fixing_reachys_mistake(study_dir: Path) -> None:
 
 
 def test_a_wrong_riddle_guess_hears_which_clue_it_breaks(study_dir: Path) -> None:
-    """The first wrong guess gets the clue it does not fit, then one more clue; the log keeps the clue."""
+    """A wrong guess hears the clue it does not fit and tries again; a second wrong guess gets one more clue."""
     study_log.start()
     coach = MathCoach(random.Random(4))
-    coach.next_problem(game=RIDDLES)
+    _start(coach, game=RIDDLES)
     assert coach._open is not None
     secret = int(coach._open.problem.answer)
     result = coach.check_answer(f"is it {secret + 1}?")
-    assert result["correct"] is False and result["close"] is False
+    assert result["correct"] is False and result["close"] is False and result["try_again"] is True
     assert result["clue_missed"].startswith(f"{secret + 1}") and result["clue_missed"] in result["instructions"]
-    assert result["helper_question"].startswith("Here is one more clue.")
+    assert "helper_question" not in result
+    again = coach.check_answer(f"{secret + 1}")
+    assert again["helper_question"].startswith("Here is one more clue.")
     study_log.stop()
     answers = [r for r in records(study_dir) if r.get("event") == "math_answer"]
     assert answers[0]["clue_missed"] == result["clue_missed"]
@@ -180,13 +200,14 @@ def test_closest_guess_compares_the_guesses(study_dir: Path) -> None:
     """Any number is a guess; Reachy then says its own guess and the real answer, and the closer one wins."""
     study_log.start()
     coach = MathCoach(random.Random(5))
-    coach.next_problem(game=CLOSEST_GUESS)
+    _start(coach, game=CLOSEST_GUESS)
     assert coach._open is not None
     problem = coach._open.problem
     assert coach.check_answer("I don't know")["heard_a_number"] is False  # a guess is needed, not help
     won = coach.check_answer(math_practice.say_number(problem.answer + 1))
     assert won["winner"] == "child" and won["correct"] is True and won["reachy_guess"] in won["instructions"]
-    assert "they win this one" in won["instructions"] and won["next_problem"]
+    assert "they win this one" in won["instructions"] and "ready for the next one" in won["instructions"]
+    coach.next_problem()
     assert coach._open is not None
     reachy = coach._open.problem.reachy_answer
     assert reachy is not None
@@ -210,10 +231,10 @@ def test_every_game_is_offered_within_three_rounds() -> None:
 def test_the_child_can_switch_games_mid_round() -> None:
     """Picking another game starts a new round of it; the same game keeps the round going."""
     coach = MathCoach(random.Random(7))
-    coach.next_problem(game=RIDDLES)
+    _start(coach, game=RIDDLES)
     coach.check_answer(_right(coach))
-    assert coach._round_count == 2 and coach.next_problem(game=RIDDLES)["round_position"] == "3 of 5"
-    switched = coach.next_problem(game=CLOSEST_GUESS)
+    assert coach._round_count == 1 and coach.next_problem(game=RIDDLES)["round_position"] == "2 of 5"
+    switched = _start(coach, game=CLOSEST_GUESS)
     assert switched["round_position"] == "1 of 5" and coach._rounds == 2
 
 
@@ -229,10 +250,11 @@ def alice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def test_what_a_child_likes_is_saved_for_next_time(alice: Path) -> None:
     """A theme picked once is saved in the child's file and used by the next story, even after a restart."""
     coach = MathCoach(random.Random(8))
-    coach.next_problem(game=STORY, theme="soccer")
+    _start(coach, game=STORY, theme="soccer")
     assert json.loads(alice.read_text(encoding="utf-8"))["theme"] == "soccer"
     later = MathCoach(random.Random(9))
-    assert later.next_problem(game=STORY)["say"].startswith(math_games.THEMES["soccer"].start)
+    asked = later.next_problem(game=STORY)  # the rules were told last time, so the story starts right away
+    assert asked["say"].startswith(math_games.THEMES["soccer"].start) and asked["reminder"]
     riddle_level = later._learner("P01").skill(RIDDLES)
     assert riddle_level.level == 1  # games with their own level start at 1
 
@@ -242,5 +264,13 @@ def test_the_tool_offers_games_and_themes(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(math_practice, "_coach", MathCoach(random.Random(10)))
     props = NextMathProblem().spec()["parameters"]["properties"]
     assert props["game"]["enum"] == list(GAMES) and props["theme"]["enum"] == list(math_games.THEMES)
+    rules = asyncio.run(NextMathProblem()(None, game=RIDDLES))  # type: ignore[arg-type]
+    assert rules["game"] == "number riddles" and rules["how_to_play"] == math_games.HOW_TO_PLAY[RIDDLES]
     asked = asyncio.run(NextMathProblem()(None, game=RIDDLES))  # type: ignore[arg-type]
     assert asked["game"] == "number riddles" and asked["say"].startswith("I'm thinking of a number")
+
+
+def test_every_game_has_rules_and_a_reminder() -> None:
+    """Each game has rules for the first time and a one-line reminder for later."""
+    assert set(math_games.HOW_TO_PLAY) == set(math_games.REMINDERS) == set(GAMES)
+    assert all(text.startswith("Here is how it works.") for text in math_games.HOW_TO_PLAY.values())

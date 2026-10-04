@@ -110,6 +110,7 @@ def _problems() -> list[math_practice.Problem]:
 def heard_texts() -> list[str]:
     """Everything the app gives Reachy to say word for word."""
     texts = list(math_games.TITLES.values())
+    texts += [*math_games.HOW_TO_PLAY.values(), *math_games.REMINDERS.values()]
     for theme in math_games.THEMES.values():
         texts += [theme.start, theme.end]
     for problem in _problems():

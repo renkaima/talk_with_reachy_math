@@ -26,7 +26,7 @@ from openai.types.realtime import (
 from websockets.exceptions import ConnectionClosedError
 from openai.types.realtime.realtime_audio_input_turn_detection_param import ServerVad
 
-from talk_with_reachy_math import math_practice
+from talk_with_reachy_math import slow_speech, math_practice
 from talk_with_reachy_math.tools import core_tools
 from talk_with_reachy_math.config import (
     HF_LOCAL_CONNECTION_MODE,
@@ -176,6 +176,9 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
         # Study data: transcripts with timing, audio clips, voice ID, and events.
         self.study = StudyRecorder(notify_model=self._send_system_note)
 
+        # Reachy's voice is played a little slower than the speech service makes it, so children can follow.
+        self._slower = slow_speech.SpeechSlower(slow_speech.speed())
+
     @staticmethod
     def _sanitize_tool_result_for_model(tool_name: str, tool_result: dict[str, Any]) -> dict[str, Any]:
         """Remove bulky transport-only fields before echoing tool output back to the model."""
@@ -255,6 +258,13 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
             tools=to_realtime_tools_config(tool_specs),
             tool_choice="auto",
         )
+
+    async def _play_slowed(self, pcm: NDArray[np.int16]) -> None:
+        """Queue slowed audio for playback and count it as Reachy's speech in the study timing."""
+        if pcm.size == 0:
+            return
+        self.study.assistant_audio(pcm.size, self.SAMPLE_RATE)
+        await self.output_queue.put((self.SAMPLE_RATE, pcm.reshape(1, -1)))
 
     def _is_connected(self) -> bool:
         """Return whether the realtime connection is open."""
@@ -804,6 +814,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
                         self._turn_first_audio_at = None
                         if self._clear_queue:
                             self._clear_queue()
+                        self._slower.reset()
                         self.deps.movement_manager.set_listening(True)
                         logger.debug("User speech started")
 
@@ -816,6 +827,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
                         logger.debug("User speech stopped - server will auto-commit with VAD")
 
                     if event.type == "response.output_audio.done":
+                        await self._play_slowed(self._slower.flush())
                         self.deps.movement_manager.set_speaking(False)
                         logger.debug("response completed")
 
@@ -826,6 +838,7 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
                         logger.debug("response text done: %s", event.text)
 
                     if event.type == "response.created":
+                        self._slower.reset()  # nothing left over from a response cut off by a lost connection
                         self.study.response_created()
                         self._followup_active, self._followup_requested = self._followup_requested, False
                         self._followup_spoke = False
@@ -909,19 +922,13 @@ class HuggingFaceRealtimeHandler(ConversationHandler):
                     if event.type == "response.output_audio.delta":
                         self._followup_spoke = True
                         decoded_pcm_bytes = base64.b64decode(event.delta)
-                        decoded_pcm = np.frombuffer(decoded_pcm_bytes, dtype=np.int16).reshape(1, -1)
-                        self.study.assistant_audio(decoded_pcm.size, self.SAMPLE_RATE)
+                        decoded_pcm = np.frombuffer(decoded_pcm_bytes, dtype=np.int16)
                         self._mark_activity("assistant_audio_delta")
                         if self._turn_user_done_at is not None and self._turn_first_audio_at is None:
                             self._turn_first_audio_at = time.perf_counter()
                             delta_ms = (self._turn_first_audio_at - self._turn_user_done_at) * 1000
                             logger.info("Turn latency: first audio delta %.0f ms after user transcript", delta_ms)
-                        await self.output_queue.put(
-                            (
-                                self.SAMPLE_RATE,
-                                decoded_pcm,
-                            ),
-                        )
+                        await self._play_slowed(self._slower.process(decoded_pcm))
                     # ---- tool-calling plumbing ----
                     if event.type == "response.function_call_arguments.done":
                         self._mark_activity("tool_call_received")

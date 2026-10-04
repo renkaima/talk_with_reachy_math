@@ -11,6 +11,7 @@ import pytest
 
 import talk_with_reachy_math.conversation_handler as conv_mod
 import talk_with_reachy_math.huggingface_realtime as hf_mod
+from talk_with_reachy_math import slow_speech
 from talk_with_reachy_math.config import config, get_default_voice
 from talk_with_reachy_math.streaming import AdditionalOutputs
 from talk_with_reachy_math.tools.core_tools import ToolDependencies
@@ -561,6 +562,7 @@ async def test_change_voice_updates_live_hf_session_without_restart(monkeypatch:
 @pytest.mark.asyncio
 async def test_run_session_decodes_audio_delta(monkeypatch: Any) -> None:
     """An audio delta is base64-decoded and enqueued as an (rate, int16) frame."""
+    monkeypatch.setenv(slow_speech.SPEED_ENV, "1")  # play the voice unchanged
     pcm = np.array([1, 2, 3, 4], dtype=np.int16)
     delta = base64.b64encode(pcm.tobytes()).decode("utf-8")
     handler = _session_handler(monkeypatch, (_FakeEvent("response.output_audio.delta", delta=delta),))
@@ -572,6 +574,24 @@ async def test_run_session_decodes_audio_delta(monkeypatch: Any) -> None:
     rate, array = frames[0]
     assert rate == handler.SAMPLE_RATE
     np.testing.assert_array_equal(array.reshape(-1), pcm)
+
+
+@pytest.mark.asyncio
+async def test_reachys_voice_is_played_slower_by_default(monkeypatch: Any) -> None:
+    """By default the voice lasts about 1/0.85 times as long, and the end of the response is not cut off."""
+    monkeypatch.delenv(slow_speech.SPEED_ENV, raising=False)
+    tone = (np.sin(2 * np.pi * 220 * np.arange(16000) / 16000) * 8000).astype(np.int16)  # one second
+    chunks = np.split(tone, 50)
+    events = tuple(
+        _FakeEvent("response.output_audio.delta", delta=base64.b64encode(c.tobytes()).decode("utf-8")) for c in chunks
+    ) + (_FakeEvent("response.output_audio.done"),)
+    handler = _session_handler(monkeypatch, events)
+
+    await handler._run_realtime_session()
+
+    played = np.concatenate([item[1].reshape(-1) for item in _drain(handler) if isinstance(item, tuple)])
+    assert 1.1 < played.size / tone.size < 1.25
+    assert np.abs(played[-160:]).max() > 4000  # the last 10 ms still carry the tone
 
 
 @pytest.mark.asyncio

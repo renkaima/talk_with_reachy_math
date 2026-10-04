@@ -15,8 +15,9 @@ class NextMathProblem(Tool):
 
     name = "next_math_problem"
     description = (
-        "Start a round of a math game for the child speaking now, or switch to another game. A round has five "
-        "problems; within a round, check_math_answer already gives you the next problem. "
+        "Start a round of a math game for the child speaking now, switch to another game, or get the next problem "
+        "when the child says they are ready. A round has five problems. The first time a child plays a game, this "
+        "returns 'how_to_play' instead of a problem: read it, and call this again when they are ready. "
         "Read the returned 'say' text exactly. Never work out or reveal the answer yourself."
     )
     parameters_schema = {

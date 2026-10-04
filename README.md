@@ -32,23 +32,27 @@ An example of the "fix my mistakes" game; Reachy's exact wording varies.
 
 > **Reachy:** Hi! I'm Reachy, a little robot who loves playing math games. Do you want to fix my mistakes, or try some number riddles?<br>
 > **Child:** Fix your mistakes!<br>
-> **Reachy:** Yay, I need your help! Can you check my work? I tried 1 half plus 1 third. I added the top numbers and the bottom numbers. I got 2 fifths. What is the real answer?<br>
+> **Reachy:** Yay, I need your help! Here is how it works. I did some math, but I made mistakes. I tell you my answer. You find the right answer. Then you tell me what I did wrong! Take your time, and say help if you get stuck. Ready?<br>
+> **Child:** Ready!<br>
+> **Reachy:** Can you check my work? I tried 1 half plus 1 third. I added the top numbers and the bottom numbers. I got 2 fifths. What is the real answer?<br>
 > **Child:** Two fifths?<br>
-> **Reachy:** I got that too! Let's check it together. Let's make the bottom numbers the same. 6 works for both. 1 half is how many sixths?<br>
+> **Reachy:** I got that too! But I think one of my steps has a mistake. Can you check my work again?<br>
+> **Child:** Hmm… I don't know.<br>
+> **Reachy:** That's okay, it's a tricky one. Let's work it out together. Let's make the bottom numbers the same. 6 works for both. 1 half is how many sixths?<br>
 > **Child:** Three.<br>
 > **Reachy:** Yes! 1 third is how many sixths?<br>
 > **Child:** Two. Oh, so it's 5 sixths!<br>
-> **Reachy:** You fixed it: 1 half plus 1 third is 5 sixths! My mistake was adding the bottom numbers. They must be the same before we add. Next one! Can you check my work? I tried 3 plus 4 times 5…
+> **Reachy:** You fixed it: 1 half plus 1 third is 5 sixths! My mistake was adding the bottom numbers. They must be the same before we add. Ready for the next one?
 
 ## The five games
 
-At the start, and after every round of five problems, Reachy lets the child pick one of two games. Over a few rounds, every game comes up.
+At the start, and after every round of five problems, Reachy lets the child pick one of two games. Over a few rounds, every game comes up. The first time a child plays a game, Reachy explains how to play in a few short sentences; when the child plays it again, Reachy gives a one-line reminder.
 
 | Game | What happens | Math practiced |
 |---|---|---|
 | **Story adventure** | Reachy tells a five-part story about something the child likes, such as space, dogs, or soccer. Each part needs one problem solved to go on: "Oh no, we are stuck! To get going, we need 3 fourths of our 24 moon rocks." | multiplication, division, a fraction of a number, percent off, order of operations |
 | **Fix my mistakes** | Reachy shows its own work with a common mistake in it. The child finds the real answer, and Reachy asks them what it did wrong. | fractions, decimals, order of operations, negative numbers, multiplication, percent, equations |
-| **Number riddles** | "I'm thinking of a number between 20 and 30. It is odd. It is in the 3 times table. What is my number?" A wrong guess hears which clue it does not fit. | even and odd numbers, times tables, digits |
+| **Number riddles** | "I'm thinking of a number between 20 and 30. It is odd. It is in the 3 times table. What is my number?" A wrong guess hears which clue it does not fit and gets another try. | even and odd numbers, times tables, digits |
 | **Closest guess** | "6 boxes have 49 moon rocks in each. About how many moon rocks is that?" The child guesses, then Reachy, and the closer guess wins. Reachy then shares the rounding trick. | estimating by rounding |
 | **Quick math** | Plain problems, five on one topic, then the next topic. | the eight topics [below](#math-topics-and-levels) |
 
@@ -57,19 +61,20 @@ The story and guessing games use what the child likes: Reachy can pick from seve
 ## How a game works
 
 <p align="center">
-  <img src="docs/readme/game_round.svg" alt="Diagram of a round. 1, pick a game: Reachy offers two of the five games (story adventure, fix my mistakes, number riddles, closest guess, quick math) and the child picks one; stories and guesses use the child's saved theme. 2, five problems from that game: Reachy reads a problem made in code, the child answers aloud, the math coach checks the number, and Reachy praises a right answer and reads the next problem, or asks a small helper question; each game adds its own reply. 3, the round ends: Reachy cheers, reads the story's ending after a story, and offers two other games or a short break, which starts the next round. Along the way, Reachy brings back a child who talks about something else, and stops when the child says stop." width="100%">
+  <img src="docs/readme/game_round.svg" alt="Diagram of a round. 1, pick a game: Reachy offers two of the five games (story adventure, fix my mistakes, number riddles, closest guess, quick math) and the child picks one; stories and guesses use the child's saved theme. The first time a child plays a game, Reachy explains how to play. 2, five problems from that game: Reachy reads a problem made in code, the child answers aloud, the math coach checks the number, and Reachy praises a right answer and asks whether the child is ready for the next one, or asks the child to think again and, after a second try, asks a small helper question; each game adds its own reply. 3, the round ends: Reachy cheers, reads the story's ending after a story, and offers two other games or a short break, which starts the next round. Along the way, Reachy brings back a child who talks about something else, and stops when the child says stop." width="100%">
 </p>
 
-A session is a series of rounds. Each round is one game the child picked, five problems long, and the next round starts with a new choice. Within a round, Reachy reads the next problem right after the last one is done, without asking whether the child wants more, and it offers a break only between rounds.
+A session is a series of rounds. Each round is one game the child picked, five problems long, and the next round starts with a new choice. Before a child's first round of a game, Reachy explains how to play. Within a round, Reachy asks "Ready for the next one?" after each problem and reads the next problem when the child says yes. It offers a break or other games between rounds.
 
 ## What the app does
 
 **For the child**
 
-- Reachy starts right away: its hello ends with a choice of two games. Problems then come one after another in rounds of five.
+- Reachy starts right away: its hello ends with a choice of two games. The first time a child plays a game, Reachy explains how to play. Problems then come in rounds of five, and after each problem Reachy asks whether the child is ready for the next one.
 - If the child talks about something else, Reachy answers briefly and brings them back to the game. If the child finds it boring, Reachy offers another game instead of stopping. It stops only when the child clearly says so, and invites them back a few minutes later.
-- Everything the app gives Reachy to read uses short sentences (at most 15 words) and words that most 4th graders know, plus math words from school such as "fraction". A test checks every problem, helper question, and explanation against the Dale-Chall list of familiar words.
-- When an answer is not right, or the child says "I don't know", Reachy breaks the problem into small helper questions instead of giving the answer.
+- Everything the app gives Reachy to read uses short sentences (at most 15 words) and words that most 4th graders know, plus math words from school such as "fraction". A test checks every game rule, problem, helper question, and explanation against the Dale-Chall list of familiar words.
+- Reachy talks at 85% of its speech service's speed, with the same pitch, so that children can follow.
+- When an answer is not right, Reachy first gives the child time to think again, without a hint. After a second try, or as soon as the child asks for help, Reachy breaks the problem into small helper questions instead of giving the answer.
 - Problems get harder or easier as the child goes, separately for each topic and each child.
 
 **For the researcher**
@@ -87,8 +92,8 @@ A session is a series of rounds. Each round is one game the child picked, five p
 1. **Reachy reads a problem** that the app made, with its answer already worked out.
 2. **The child answers aloud.** The speech service turns the answer into text, and the language model passes the child's exact words to the app's math coach.
 3. **The math coach reads the number** from those words: digits, number words ("seventy-two"), decimals, fractions ("three fourths"), mixed numbers, and negatives.
-4. **The coach compares it with the stored answer and decides what comes next.** A right answer gets praise. An answer that is not right yet gets a small helper question, and a guess within 10 percent is praised as a good estimate. Each game adds its own reply: in a riddle, Reachy names the clue a wrong guess does not fit; when a child repeats Reachy's own mistake, Reachy says it got that too and checks it with them; in the closest guess game, any number counts as a guess, and the coach works out whose guess was closer. After the last helper question, Reachy says the whole answer, and explains it if the child's last answer was not right either.
-5. **The coach records the result and keeps the game going.** It writes every answer to the study log and, when a problem is finished, updates the child's level and hands over the next problem of the round. The language model then says what the coach decided and reads the next problem.
+4. **The coach compares it with the stored answer and decides what comes next.** A right answer gets praise. A first answer that is not right yet gets "Not quite yet" and another try, and a second one gets a small helper question; a guess within 10 percent is praised as a good estimate. Each game adds its own reply: in a riddle, Reachy names the clue a wrong guess does not fit; when a child repeats Reachy's own mistake, Reachy says it got that too and asks the child to check again; in the closest guess game, any number counts as a guess, and the coach works out whose guess was closer. After the last helper question, Reachy says the whole answer, and explains it if the child's last answer was not right either.
+5. **The coach records the result and keeps the game going.** It writes every answer to the study log and, when a problem is finished, updates the child's level. The language model then says what the coach decided and asks whether the child is ready for the next problem; when the child says yes, the coach hands over the next problem of the round.
 
 ## Math topics and levels
 
@@ -112,7 +117,7 @@ In stories, the numbers stay small enough to work out while listening; for examp
 | Number riddles | a number between two tens 10 apart; clues: even or odd, the 3, 4, or 5 times table, the sum of its digits | 20 apart; the 3, 4, 6, 7, or 9 times table, the last digit | 30 apart, up to 150; the 6, 7, 8, 9, 11, or 12 times table |
 | Closest guess | about 2-digit × 1-digit | about 2-digit × 2-digit | about 3-digit × 2-digit |
 
-**How levels change.** Each child starts every topic and game at level 1. Three problems in a row answered right on the first try (in the closest guess game: three close guesses in a row) move the child up one level. Two problems in a row in which Reachy had to give away an answer move the child down one level. A problem solved with help, with every helper question answered right, leaves the level as it is.
+**How levels change.** Each child starts every topic and game at level 1. Three problems in a row answered right on the first try (in the closest guess game: three close guesses in a row) move the child up one level. Two problems in a row in which Reachy had to give away an answer move the child down one level. A problem solved on the second try, or with help with every helper question answered right, leaves the level as it is.
 
 ## A study session, step by step
 
@@ -145,10 +150,10 @@ talk_with_reachy_math_data/
 ├── audio/<same name>/<seq>_<speaker ID>.wav     one clip per person utterance
 ├── people/library.json                          voiceprints of all known voices
 ├── people/<speaker ID>/memory.v1.json           what Reachy remembers about each child
-└── people/<speaker ID>/math_progress.json       the child's levels and favorite theme
+└── people/<speaker ID>/math_progress.json       the child's levels, favorite theme, and games explained
 ```
 
-The math events are `math_problem` (the game and theme, the problem, its topic and level, the answer, Reachy's own wrong answer or guess, and its place in the round), `math_answer` (what the child said, the number read from it, whether it was right, which helper question it answered, and, depending on the game, the clue a riddle guess broke or who won a closest guess), `math_level_change`, and `math_practice_stopped`. A problem from the closest guess game and the child's answer look like this (each is one line in the file, spread out here):
+The math events are `math_game_explained` (Reachy told a child how to play a game), `math_problem` (the game and theme, the problem, its topic and level, the answer, Reachy's own wrong answer or guess, and its place in the round), `math_answer` (what the child said, the number read from it, whether it was right, which helper question it answered, whether Reachy asked the child to try again or started the helper questions, and, depending on the game, the clue a riddle guess broke or who won a closest guess), `math_level_change`, and `math_practice_stopped`. A problem from the closest guess game and the child's answer look like this (each is one line in the file, spread out here):
 
 ```json
 {
@@ -226,11 +231,12 @@ The app is provided "as is", without warranty of any kind; see the [Disclaimer](
 - **Check voice ID before relying on it,** especially with children's voices: the voice-matching thresholds come from a check on clean recordings of six speakers and have not been validated on children's voices or in a noisy room ([details](STUDY_SETUP.md#voice-identification)).
 - **Separate from Talk with Reachy.** This app has its own data folder, Google Drive folder, Google sign-in, and voice library, and its Python package `talk_with_reachy_math` installs next to the other apps on the same robot.
 - **Math can be switched off** with the setting `TALK_WITH_REACHY_MATH_PRACTICE=0`.
+- **Reachy's voice is slowed in the app.** The speech service has no speed setting, so the app plays its audio at 85% speed. `TALK_WITH_REACHY_MATH_SPEECH_SPEED` changes this, and `1` plays the voice unchanged.
 - **The research behind the games is not an evaluation of this app.** The studies in [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md) tested other games, tutors, and robots, mostly on screens and with other age groups. Whether these games help children learn is a question for a study.
 
 ## Built with
 
-Talk with Reachy Math adds new code (the math games, the answer checking, and the word check) to the projects below. Their authors do not maintain or endorse this app. The full list of dependencies is in [pyproject.toml](pyproject.toml) and [uv.lock](uv.lock).
+Talk with Reachy Math adds new code (the math games, the answer checking, the word check, and the slower voice) to the projects below. Their authors do not maintain or endorse this app. The full list of dependencies is in [pyproject.toml](pyproject.toml) and [uv.lock](uv.lock).
 
 | Project | By | What it does in this app | License |
 |---|---|---|---|
@@ -246,6 +252,7 @@ Talk with Reachy Math adds new code (the math games, the answer checking, and th
 | [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) | Model Context Protocol | Remote tools such as web search and weather | MIT |
 | [httpx](https://github.com/encode/httpx) | Encode | HTTP requests, including the Google Drive upload | BSD 3-Clause |
 | [MSAL for Python](https://github.com/AzureAD/microsoft-authentication-library-for-python) | Microsoft | OneDrive sign-in (currently switched off) | MIT |
+| [audiotsm](https://github.com/Muges/audiotsm) | Muges | Plays Reachy's voice more slowly without changing its pitch (WSOLA) | MIT |
 | [textstat](https://github.com/textstat/textstat) | textstat contributors | The Dale-Chall word list for the word check (tests only) | MIT |
 
 The math games follow the US [Common Core State Standards for Mathematics](https://www.thecorestandards.org/Math/) for grades 5 to 7, and their design draws on the studies listed in [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md).

@@ -11,7 +11,7 @@ import pytest
 import test_huggingface_realtime as hf_tests
 from study_helpers import records
 
-from talk_with_reachy_math import memory, prompts, voice_id, study_log
+from talk_with_reachy_math import memory, prompts, voice_id, study_log, slow_speech
 from talk_with_reachy_math.tools.forget import Forget
 from talk_with_reachy_math.tools.remember import Remember
 from talk_with_reachy_math.onedrive_upload import OneDriveUploader, upload_url
@@ -35,6 +35,7 @@ async def test_realtime_events_reach_the_study_recorder(monkeypatch: pytest.Monk
         hf_tests._FakeEvent("response.output_audio_transcript.done", transcript="Hello!"),
         hf_tests._FakeEvent("response.done"),
     )
+    monkeypatch.setenv(slow_speech.SPEED_ENV, "1")  # play the voice unchanged, so the sample count is the input's
     handler = hf_tests._session_handler(monkeypatch, events)
     handler.study = MagicMock()
 
@@ -46,7 +47,7 @@ async def test_realtime_events_reach_the_study_recorder(monkeypatch: pytest.Monk
     study.user_speech_stopped.assert_called_once_with("it1", 3400)
     study.user_transcript.assert_called_once_with("it1", "Hi")
     study.response_created.assert_called_once()
-    study.assistant_audio.assert_called_once_with(2, handler.SAMPLE_RATE)  # 4 bytes of PCM16
+    study.assistant_audio.assert_called_once_with(2, handler.SAMPLE_RATE)  # 4 bytes of PCM16, played unchanged
     study.assistant_transcript.assert_called_once_with("Hello!")
     study.response_done.assert_called_once()
     study.connection_closed.assert_called_once_with("closed")

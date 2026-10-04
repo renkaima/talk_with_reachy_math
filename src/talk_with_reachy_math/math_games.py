@@ -54,6 +54,27 @@ TITLES = {
     CLOSEST_GUESS: "a closest guess game",
     QUICK_MATH: "quick math",
 }
+# How Reachy explains a game the first time a child plays it, before the first problem.
+_TAKE_YOUR_TIME = "Take your time, and say help if you get stuck."
+HOW_TO_PLAY = {
+    STORY: "Here is how it works. I tell a story in five parts. Each part has a math question. "
+    f"Get it right, and the story goes on! {_TAKE_YOUR_TIME}",
+    FIX_MY_MISTAKE: "Here is how it works. I did some math, but I made mistakes. I tell you my answer. "
+    f"You find the right answer. Then you tell me what I did wrong! {_TAKE_YOUR_TIME}",
+    RIDDLES: "Here is how it works. I think of a secret number and give you clues. "
+    f"You find the number that fits every clue! {_TAKE_YOUR_TIME}",
+    CLOSEST_GUESS: "Here is how it works. I ask a question, and we both guess the answer. "
+    "You guess first, then me. The closer guess wins! Round the numbers to guess fast.",
+    QUICK_MATH: f"Here is how it works. I ask a math question, and you say the answer. {_TAKE_YOUR_TIME}",
+}
+# The one line Reachy says instead when the child has played the game before.
+REMINDERS = {
+    STORY: "Answer each part to make the story go on.",
+    FIX_MY_MISTAKE: "Find the right answer, then tell me what I did wrong.",
+    RIDDLES: "Find the secret number that fits every clue.",
+    CLOSEST_GUESS: "We both guess, and the closer guess wins.",
+    QUICK_MATH: "Say your answer when you are ready.",
+}
 # Common Core standards practiced by the games with a level of their own (the others use their topics').
 STANDARDS = {RIDDLES: "4.OA.4", CLOSEST_GUESS: "4.OA.3, 5.NBT.5"}
 
