@@ -17,6 +17,8 @@
   <a href="#disclaimer">Disclaimer</a>
 </p>
 
+> **TL;DR.** Talk with Reachy Math turns a Reachy Mini robot into a spoken math coach for children aged 10 to 13. The child picks one of five games, such as a story adventure or fixing the robot's mistakes, and answers out loud. Reachy listens and talks through Hugging Face's open speech service: Silero VAD detects when the child stops talking, Parakeet transcribes the speech, a language model (Gemma 4, according to Hugging Face) writes the reply, and Qwen3-TTS speaks it. The language model never does the math. Our own Python code makes every problem, checks every answer, gives step-by-step hints, and adjusts each child's level. On the robot, the app also recognizes each child by voice, slows Reachy's speech for children, and records every turn for research.
+
 **Talk with Reachy Math** is an app for [Reachy Mini](https://github.com/pollen-robotics/reachy_mini), a small robot by Pollen Robotics. Reachy plays spoken math games with children aged about 10 to 13 (US grades 5 to 7), in English. The child picks a game: a story adventure, fixing Reachy's mistakes, number riddles, a closest guess game, or quick math. Reachy reads each problem aloud, listens to the child's answer, and, when the answer is not right yet, helps with small step-by-step questions. Every answer is checked in code, not by the language model, so Reachy never calls a wrong answer right.
 
 Each game is built on findings from research on learning and motivation, such as how stories, choice, and explaining mistakes help children learn math. [docs/LEARNING_DESIGN.md](docs/LEARNING_DESIGN.md) explains each design choice and lists the studies behind it.
